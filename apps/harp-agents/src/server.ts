@@ -119,10 +119,12 @@ async function callToolsFunction(args: any) {
 
 /**
  * Utility: run one "tool cycle":
- * 1. Ask orchestrator what to do.
- * 2. If it says call_gemini → call tools_function.
- * 3. Send last_gemini_answer back into orchestrator.
- * 4. Return the final orchestrator state + message_to_user.
+ * - Calls the orchestrator once with baseState.
+ * - If next_action is neither "call_gemini" nor "call_leetcode_api", returns { orchestrator, toolResult: null, messageToUser }.
+ * - If next_action is "call_gemini" or "call_leetcode_api", calls the tools_function with the provided arguments,
+ *   computes messageToUser from the tool result, and returns { orchestrator, toolResult, messageToUser }.
+ * - Does NOT feed tool text back into the agent.
+ * - The LeetCode question or Gemini answer should be taken from messageToUser/toolResult on the backend/front-end side.
  */
 async function runToolCycle(baseState: {
   phase: any;
@@ -131,38 +133,29 @@ async function runToolCycle(baseState: {
   last_gemini_answer: any;
   difficulty: any;
 }) {
-  // Step 1: ask orchestrator
+  // Step 1: ask orchestrator once
   const step1 = await callOrchestrator(baseState);
 
-  if (step1.next_action !== 'call_gemini') {
-    // No Gemini call needed; just return whatever the agent decided
-    return { orchestrator: step1, lastGeminiAnswer: null };
+  if (step1.next_action !== 'call_gemini' && step1.next_action !== 'call_leetcode_api') {
+    // No tool call needed; just return the orchestrator response
+    return { orchestrator: step1, toolResult: null, messageToUser: step1.message_to_user || '' };
   }
 
-  // Step 2: call tools_function (Gemini wrapper)
+  // Call tools_function (Gemini or LeetCode wrapper)
   const toolArgs = step1.tool_call?.arguments || {};
   const toolResult = await callToolsFunction(toolArgs);
 
-  const lastGeminiAnswer =
+  const messageToUser =
     toolResult.answer ||
     toolResult.text ||
     toolResult.body?.answer ||
+    toolResult.body?.text ||
     JSON.stringify(toolResult);
 
-  // Step 3: feed Gemini answer back to orchestrator
-  const step2Input = {
-    ...baseState,
-    phase: step1.phase,
-    agent_mode: step1.agent_mode,
-    last_gemini_answer: lastGeminiAnswer,
-    user_message: null,
-  };
-
-  const step2 = await callOrchestrator(step2Input);
-
   return {
-    orchestrator: step2,
-    lastGeminiAnswer,
+    orchestrator: step1,
+    toolResult,
+    messageToUser,
   };
 }
 
@@ -178,19 +171,19 @@ app.post('/api/start-interview', async (req, res) => {
       phase: 'planning',
       agent_mode: 'planner',
       user_message: `Start a ${difficulty} technical interview.`,
-      last_gemini_answer: null,
       difficulty,
     };
 
-    const { orchestrator, lastGeminiAnswer } = await runToolCycle(baseState);
+    // Run one tool cycle: orchestrator + optional tools_function call
+    const { orchestrator, toolResult, messageToUser } = await runToolCycle(baseState);
 
     res.json({
-      messageToUser: orchestrator.message_to_user,
+      messageToUser,
       state: {
         phase: orchestrator.phase,
         agent_mode: orchestrator.agent_mode,
         difficulty,
-        last_gemini_answer: lastGeminiAnswer,
+        lastToolResult: toolResult,
       },
       rawOrchestrator: orchestrator,
     });
@@ -217,20 +210,21 @@ app.post('/api/answer', async (req, res) => {
       phase = 'interviewing',
       agent_mode = 'interviewer',
       difficulty = 'easy',
-      last_gemini_answer = null,
+      last_gemini_answer = null, // keep reading for backward compatibility but do not pass to orchestrator
     } = req.body || {};
 
+    // Build answerState without last_gemini_answer (no feeding tool text back into orchestrator)
     const answerState = {
       phase,
       agent_mode,
       user_message: userMessage,
-      last_gemini_answer,
       difficulty,
     };
 
     const step1 = await callOrchestrator(answerState);
 
-    if (step1.next_action === 'call_gemini') {
+    if (step1.next_action === 'call_gemini' || step1.next_action === 'call_leetcode_api') {
+      // Call tools_function (Gemini or LeetCode wrapper)
       const toolArgs = step1.tool_call?.arguments || {};
       const toolResult = await callToolsFunction(toolArgs);
 
@@ -238,37 +232,28 @@ app.post('/api/answer', async (req, res) => {
         toolResult.answer ||
         toolResult.text ||
         toolResult.body?.answer ||
+        toolResult.body?.text ||
         JSON.stringify(toolResult);
 
-      const step2Input = {
-        phase: step1.phase,
-        agent_mode: step1.agent_mode,
-        user_message: null,
-        last_gemini_answer: geminiAnswer,
-        difficulty,
-      };
-
-      const step2 = await callOrchestrator(step2Input);
-
       res.json({
-        messageToUser: step2.message_to_user,
+        messageToUser: geminiAnswer,
         state: {
-          phase: step2.phase,
-          agent_mode: step2.agent_mode,
+          phase: step1.phase,
+          agent_mode: step1.agent_mode,
           difficulty,
-          last_gemini_answer: geminiAnswer,
+          lastToolResult: toolResult,
         },
-        rawOrchestrator: step2,
+        rawOrchestrator: step1,
       });
     } else {
-      // No Gemini call needed
+      // No tool call needed; just return the orchestrator response
       res.json({
         messageToUser: step1.message_to_user,
         state: {
           phase: step1.phase,
           agent_mode: step1.agent_mode,
           difficulty,
-          last_gemini_answer,
+          lastToolResult: null,
         },
         rawOrchestrator: step1,
       });
