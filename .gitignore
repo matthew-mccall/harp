@@ -33,6 +33,7 @@ npm-debug.log
 yarn-error.log
 testem.log
 /typings
+/apps/harp-agents/src/.env
 
 # System Files
 .DS_Store
