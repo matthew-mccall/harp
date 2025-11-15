@@ -7,22 +7,21 @@ import UserCamera from './components/UserCamera';
 
 export default function InterviewPage() {
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
       <Navbar />
 
       {/* Main Content */}
       <div
-        className="flex gap-4 p-4 max-w-[1800px] mx-auto"
-        style={{ height: 'calc(100vh - 73px)' }}
+        className="flex flex-1 overflow-hidden"
       >
         {/* Left Section - IDE */}
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="flex-1 flex flex-col overflow-hidden">
           <CodeEditor />
           <Terminal />
         </div>
 
         {/* Right Section - Video & Captions */}
-        <div className="w-96 flex flex-col gap-4">
+        <div className="w-96 flex flex-col overflow-hidden">
           <InterviewerVideo />
           <LiveTranscription />
           <UserCamera />

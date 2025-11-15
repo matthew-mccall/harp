@@ -56,7 +56,7 @@ export default function UserCamera() {
   }, [stream]);
 
   return (
-    <div className="flex-1 bg-black border-2 border-white/30 rounded overflow-hidden relative">
+    <div className="flex-1 bg-gradient-to-br from-black via-gray-950 to-black border-l border-white/10 overflow-hidden relative shadow-2xl shadow-white/5">
       <video
         ref={videoRef}
         autoPlay
@@ -68,7 +68,7 @@ export default function UserCamera() {
       {!isCameraOn && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-2 rounded-full border-2 border-white/30 flex items-center justify-center">
+            <div className="w-16 h-16 mx-auto mb-3 rounded-full border-2 border-white/20 bg-gradient-to-br from-white/5 to-transparent flex items-center justify-center shadow-inner">
               <svg
                 className="w-8 h-8 text-white/50"
                 fill="none"
@@ -83,7 +83,7 @@ export default function UserCamera() {
                 />
               </svg>
             </div>
-            <p className="text-xs text-gray-500 max-w-xs">
+            <p className="text-xs text-gray-400 max-w-xs">
               {error || 'Camera Off'}
             </p>
           </div>
@@ -91,12 +91,12 @@ export default function UserCamera() {
       )}
       
       <div className="absolute bottom-4 left-4 flex gap-2 z-10">
-        <div className="bg-black/80 border border-white/40 px-3 py-1 rounded text-xs">
+        <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/30 px-3 py-1.5 rounded-lg text-xs shadow-lg">
           You
         </div>
         <button
           onClick={isCameraOn ? stopCamera : startCamera}
-          className="bg-black/80 hover:bg-white hover:text-black border border-white/40 px-3 py-1 rounded text-xs transition"
+          className="bg-gradient-to-br from-white/10 to-white/5 hover:from-white hover:to-gray-100 hover:text-black backdrop-blur-md border border-white/30 hover:border-white px-4 py-1.5 rounded-lg text-xs transition-all duration-300 shadow-lg hover:shadow-white/20"
         >
           {isCameraOn ? '📹 On' : '📹 Off'}
         </button>
