@@ -3,6 +3,7 @@ import { Server } from 'socket.io'
 import { createServer } from 'node:http';
 import path from 'node:path';
 import wrtc from '@roamhq/wrtc'
+import cors, { CorsOptions } from 'cors';
 const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = wrtc;
 
 const host = process.env.HOST ?? 'localhost';
@@ -10,8 +11,44 @@ const port = process.env.PORT ? Number(process.env.PORT) : 3001;
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
+
+// CORS: allow only localhost origins
+const isLocalhostOrigin = (origin?: string | null) => {
+  if (!origin) return true; // allow same-origin or curl/no-origin
+  try {
+    const u = new URL(origin);
+    return (
+      (u.hostname === 'localhost' || u.hostname === '127.0.0.1') &&
+      (u.protocol === 'http:' || u.protocol === 'https:')
+    );
+  } catch {
+    return false;
+  }
+};
+
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    if (isLocalhostOrigin(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type'],
+  maxAge: 86400,
+} as const;
+
+app.use(cors(corsOptions));
+
 const server = createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: (origin, callback) => {
+      if (isLocalhostOrigin(origin)) return callback(null, true);
+      callback(new Error('Not allowed by CORS'));
+    },
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type'],
+  },
+});
 
 const publicDir = path.resolve(__dirname, 'assets');
 console.log(publicDir);

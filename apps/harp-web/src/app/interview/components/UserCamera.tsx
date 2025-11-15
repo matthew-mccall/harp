@@ -7,6 +7,11 @@ export default function UserCamera() {
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+
+  const EMOTION_BASE_URL = (typeof window !== 'undefined' && (process as any)?.env?.NEXT_PUBLIC_EMOTION_URL)
+    || (typeof window !== 'undefined' ? (window as any).NEXT_PUBLIC_EMOTION_URL : undefined)
+    || 'http://localhost:3001';
 
   const startCamera = async () => {
     try {
@@ -16,16 +21,19 @@ export default function UserCamera() {
         audio: false,
       });
       console.log('Camera access granted', mediaStream);
-      
+
       setStream(mediaStream);
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         // Ensure video plays
         await videoRef.current.play();
         console.log('Video playing');
       }
-      
+
+      // Start WebRTC publishing to harp-emotion server
+      await startWebRTC(mediaStream);
+
       setIsCameraOn(true);
       setError(null);
     } catch (err) {
@@ -41,16 +49,94 @@ export default function UserCamera() {
       stream.getTracks().forEach((track) => track.stop());
       setStream(null);
     }
+    // Close peer connection if any
+    if (pcRef.current) {
+      try { pcRef.current.close(); } catch {}
+      pcRef.current = null;
+    }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
     setIsCameraOn(false);
   };
 
+  const waitForIceGatheringComplete = (pc: RTCPeerConnection, timeoutMs = 3000) =>
+    new Promise<void>((resolve) => {
+      if (pc.iceGatheringState === 'complete') return resolve();
+      const onChange = () => {
+        if (pc.iceGatheringState === 'complete') {
+          pc.removeEventListener('icegatheringstatechange', onChange);
+          resolve();
+        }
+      };
+      pc.addEventListener('icegatheringstatechange', onChange);
+      setTimeout(() => {
+        pc.removeEventListener('icegatheringstatechange', onChange);
+        resolve();
+      }, timeoutMs);
+    });
+
+  const startWebRTC = async (mediaStream: MediaStream) => {
+    // If there's already a peer connection, close it
+    if (pcRef.current) {
+      try { pcRef.current.close(); } catch {}
+      pcRef.current = null;
+    }
+
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    });
+    pcRef.current = pc;
+
+    pc.oniceconnectionstatechange = () => {
+      console.log('[webrtc] iceConnectionState:', pc.iceConnectionState);
+    };
+    pc.onconnectionstatechange = () => {
+      console.log('[webrtc] connectionState:', pc.connectionState);
+    };
+
+    // Add all tracks from the local camera to the peer connection
+    for (const track of mediaStream.getTracks()) {
+      pc.addTrack(track, mediaStream);
+    }
+
+    // Create and set local offer
+    const offer = await pc.createOffer({ offerToReceiveAudio: false, offerToReceiveVideo: false });
+    await pc.setLocalDescription(offer);
+
+    // Wait for local ICE gathering so our offer includes candidates
+    await waitForIceGatheringComplete(pc);
+
+    const localDesc = pc.localDescription;
+    if (!localDesc) throw new Error('Failed to get localDescription');
+
+    // Send the offer to the harp-emotion server to get an answer
+    const url = `${EMOTION_BASE_URL.replace(/\/$/, '')}/webrtc/offer`;
+    console.log('[webrtc] Sending offer to', url);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: localDesc.type, sdp: localDesc.sdp }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Server responded ${res.status}: ${text}`);
+    }
+    const answer = await res.json();
+    console.log('[webrtc] Received answer');
+    await pc.setRemoteDescription(answer);
+
+    // Done. The server is in recvonly and should log tracks.
+  };
+
   useEffect(() => {
     return () => {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
+      }
+      if (pcRef.current) {
+        try { pcRef.current.close(); } catch {}
+        pcRef.current = null;
       }
     };
   }, [stream]);
@@ -64,7 +150,7 @@ export default function UserCamera() {
         muted
         className={`w-full h-full object-cover ${isCameraOn ? 'block' : 'hidden'}`}
       />
-      
+
       {!isCameraOn && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
@@ -89,7 +175,7 @@ export default function UserCamera() {
           </div>
         </div>
       )}
-      
+
       <div className="absolute bottom-4 left-4 flex gap-2 z-10">
         <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/30 px-3 py-1.5 rounded-lg text-xs shadow-lg">
           You
