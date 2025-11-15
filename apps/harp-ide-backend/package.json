@@ -98,6 +98,13 @@
     }
   },
   "dependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/dockerode": "^3.3.46",
+    "cors": "^2.8.5",
+    "dockerode": "^4.0.9",
     "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@nx/esbuild": "^22.0.3"
   }
 }

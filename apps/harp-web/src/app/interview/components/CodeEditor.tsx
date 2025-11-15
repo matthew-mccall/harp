@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 
 interface CodeEditorProps {
-  onRunCode?: (code: string) => void;
+  onRunCode?: (code: string) => void | Promise<void>;
 }
 
 export default function CodeEditor({ onRunCode }: CodeEditorProps) {
@@ -18,9 +18,10 @@ export default function CodeEditor({ onRunCode }: CodeEditorProps) {
     editorRef.current = editor;
   };
 
-  const handleRunCode = () => {
+  const handleRunCode = async () => {
+    console.log('🔘 Button clicked, calling onRunCode');
     if (onRunCode) {
-      onRunCode(code);
+      await onRunCode(code);
     }
   };
 
