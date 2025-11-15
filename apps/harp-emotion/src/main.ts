@@ -4,7 +4,15 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import wrtc from '@roamhq/wrtc'
 import cors, { CorsOptions } from 'cors';
+// TensorFlow.js (Node backend) and Face Detection model
+import * as tf from '@tensorflow/tfjs-node';
+import '@tensorflow/tfjs-backend-cpu';
+import '@tensorflow/tfjs-core';
+import '@tensorflow/tfjs-backend-webgl';
+import { createDetector, SupportedModels, type FaceDetector } from '@tensorflow-models/face-detection';
 const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = wrtc;
+const nonstandard: any = (wrtc as any).nonstandard || {};
+const { RTCVideoSink } = nonstandard;
 
 const host = process.env.HOST ?? 'localhost';
 const port = process.env.PORT ? Number(process.env.PORT) : 3001;
@@ -107,13 +115,90 @@ app.post('/webrtc/offer', async (req, res) => {
       }
     };
 
-    // Logging: when tracks are received
+    // Logging and Face Detection: when video tracks are received
     pc.ontrack = (event: any) => {
-      const track = event.track;
-      if (track && track.kind === 'video') {
-        const streamIds = (event.streams || []).map((s: any) => s.id);
-        console.log(`[webrtc] received video track id=${track.id} streams=[${streamIds.join(',')}]`);
+      const track: any = event?.track;
+      if (!track) return;
+      if (track.kind !== 'video') return;
+
+      const streamIds = (event.streams || []).map((s: any) => s.id);
+      console.log(`[webrtc] received video track id=${track.id} streams=[${streamIds.join(',')}]`);
+
+      // Attach a video sink if supported by wrtc
+      if (!RTCVideoSink) {
+        console.warn('[webrtc] RTCVideoSink not available in this wrtc build; face detection disabled');
+        return;
       }
+
+      const sink = new RTCVideoSink(track as any);
+      let lastProcessTs = 0;
+      let hadFace = false; // track-level state to detect new face appearance
+      let closed = false;
+
+      // Ensure detector is ready (lazy-init singleton)
+      getFaceDetector().catch((e) => {
+        console.error('[face] failed to init detector:', e);
+      });
+
+      const onFrame = async ({ frame }: any) => {
+        if (closed || !frame) return;
+        const now = Date.now();
+        // Throttle to ~5 FPS
+        if (now - lastProcessTs < 200) return;
+        lastProcessTs = now;
+
+        try {
+          const { width, height } = frame;
+          const data: Uint8Array | Buffer | undefined =
+            (frame?.i420 as Uint8Array | undefined) ||
+            (frame?.data as Uint8Array | undefined) ||
+            (frame?.buffer as Uint8Array | undefined);
+          if (!width || !height || !data) return;
+
+          const rgb = i420ToRgb(data, width, height);
+          // Create tensor [H,W,3] int32 so values 0..255 are preserved
+          const input = tf.tensor3d(rgb, [height, width, 3], 'int32');
+          let faces: any[] = [];
+          try {
+            const detector = await getFaceDetector();
+            faces = await detector.estimateFaces(input as any, { flipHorizontal: false });
+          } finally {
+            input.dispose();
+          }
+
+          const count = Array.isArray(faces) ? faces.length : 0;
+          if (!hadFace && count > 0) {
+            hadFace = true;
+            console.log(`[face] new face detected on track=${track.id} at ${new Date().toISOString()} (faces=${count})`);
+          } else if (count === 0) {
+            // Reset when no faces so we can detect a new appearance later
+            hadFace = false;
+          }
+        } catch (err) {
+          // Keep errors noisy but non-fatal
+          console.warn('[face] frame processing error:', (err as any)?.message || err);
+        }
+      };
+
+      sink.addEventListener?.('frame', onFrame);
+      // node-webrtc also supports assigning callback directly
+      if ((sink as any).onframe === undefined) {
+        (sink as any).onframe = onFrame;
+      }
+
+      const cleanup = () => {
+        if (closed) return;
+        closed = true;
+        try { sink.stop?.(); } catch {}
+        try { (sink as any).onframe = undefined; } catch {}
+      };
+
+      // Clean up when track ends or pc closes
+      track.addEventListener?.('ended', cleanup);
+      pc.addEventListener?.('connectionstatechange', () => {
+        const s = pc.connectionState;
+        if (s === 'closed' || s === 'failed' || s === 'disconnected') cleanup();
+      });
     };
 
     // Some senders may include separate trickle candidates in the payload
@@ -184,3 +269,68 @@ app.post('/webrtc/offer', async (req, res) => {
 server.listen(port, host, () => {
   console.log(`[ ready ] http://${host}:${port}`);
 });
+
+// --- Face Detection Utilities ---
+let detectorPromise: Promise<FaceDetector> | null = null;
+async function getFaceDetector(): Promise<FaceDetector> {
+  if (!detectorPromise) {
+    detectorPromise = (async () => {
+      try {
+        // Prefer CPU backend for broader kernel coverage (e.g., 'Transform' op)
+        await tf.setBackend('cpu');
+      } catch {
+        // Fallback to whatever backend is available
+      }
+      await tf.ready();
+      try {
+        console.log('[face] tfjs backend:', tf.getBackend());
+      } catch {}
+      const detector = await createDetector(SupportedModels.MediaPipeFaceDetector, {
+        runtime: 'tfjs',
+      } as any);
+      return detector;
+    })();
+  }
+  return detectorPromise;
+}
+
+function clampToByte(x: number): number {
+  return x < 0 ? 0 : x > 255 ? 255 : x | 0;
+}
+
+// Convert I420 (YUV420 planar) frame to RGB uint8 array
+function i420ToRgb(yuv: Uint8Array | Buffer, width: number, height: number): Uint8Array {
+  const Ysize = width * height;
+  const Usize = (width >> 1) * (height >> 1);
+  const Vsize = Usize;
+  const Y = yuv.subarray(0, Ysize);
+  const U = yuv.subarray(Ysize, Ysize + Usize);
+  const V = yuv.subarray(Ysize + Usize, Ysize + Usize + Vsize);
+  const rgb = new Uint8Array(width * height * 3);
+
+  let p = 0;
+  for (let y = 0; y < height; y++) {
+    const yRow = y * width;
+    const uvRow = (y >> 1) * (width >> 1);
+    for (let x = 0; x < width; x++) {
+      const yVal = Y[yRow + x];
+      const uvIdx = uvRow + (x >> 1);
+      const uVal = U[uvIdx];
+      const vVal = V[uvIdx];
+
+      // YUV -> RGB conversion (BT.601)
+      const C = yVal - 16;
+      const D = uVal - 128;
+      const E = vVal - 128;
+      // Using integer math approximation
+      let R = (298 * C + 409 * E + 128) >> 8;
+      let G = (298 * C - 100 * D - 208 * E + 128) >> 8;
+      let B = (298 * C + 516 * D + 128) >> 8;
+
+      rgb[p++] = clampToByte(R);
+      rgb[p++] = clampToByte(G);
+      rgb[p++] = clampToByte(B);
+    }
+  }
+  return rgb;
+}
