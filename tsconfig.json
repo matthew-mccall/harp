@@ -8,6 +8,9 @@
     },
     {
       "path": "./apps/harp-agents"
+    },
+    {
+      "path": "./apps/harp-ide-backend"
     }
   ]
 }

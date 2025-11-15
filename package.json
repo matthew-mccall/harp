@@ -7,6 +7,7 @@
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "express": "^4.21.2",
     "next": "~15.2.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -29,6 +30,7 @@
     "@swc/cli": "~0.6.0",
     "@swc/core": "~1.5.7",
     "@swc/helpers": "~0.5.11",
+    "@types/express": "^4.17.21",
     "@types/node": "20.19.9",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
