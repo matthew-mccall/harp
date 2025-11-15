@@ -7,6 +7,9 @@
       "path": "./apps/harp-web"
     },
     {
+      "path": "./apps/harp-emotion"
+    },
+    {
       "path": "./apps/harp-agents"
     },
     {
