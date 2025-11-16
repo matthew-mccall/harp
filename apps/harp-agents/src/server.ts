@@ -10,21 +10,14 @@ app.use(express.json());
 
 const {
   PORT = 4000,
-
-  // Gradient
-  GRADIENT_BASE_URL,        // this should be your AGENT_ENDPOINT, e.g. https://xx23jiwihvgqnj4wplccfivi.agents.do-ai.run
-  GRADIENT_AGENT_AK,        // Agent Access Key from DigitalOcean UI
-
-  // (you still have these in .env but we won't use them for now)
+  GRADIENT_BASE_URL,       
+  GRADIENT_AGENT_AK,
   GRADIENT_AGENT_ID,
   GRADIENT_API_KEY,
-
   GEMINI_API_KEY,
   TOOLS_FUNCTION_URL,
 } = process.env;
 
-// Build the full Agent chat-completions URL from the endpoint base
-// Example: https://xx23jiwihvgqnj4wplccfivi.agents.do-ai.run/api/v1/chat/completions
 const GRADIENT_AGENT_CHAT_URL = GRADIENT_BASE_URL
   ? `${GRADIENT_BASE_URL.replace(/\/$/, '')}/api/v1/chat/completions`
   : '';
@@ -35,6 +28,9 @@ if (!GRADIENT_AGENT_CHAT_URL || !GRADIENT_AGENT_AK || !TOOLS_FUNCTION_URL) {
   );
   process.exit(1);
 }
+
+// Long-term conversation memory is handled on the client side by persisting state.history and sending it back on each /api/answer call.
+// Gemini itself remains stateless per request, receiving only what it needs (e.g., the latest question/answer, transcript, or summarized history) via orchestrator prompts.
 
 /**
  * Call the Gradient Orchestrator Agent via /api/v1/chat/completions
@@ -161,17 +157,20 @@ async function runToolCycle(baseState: {
 
 /**
  * POST /api/start-interview
- * body: { difficulty: "easy" | "medium" | "hard" }
+ * body: { difficulty: "easy" | "medium" | "hard", history?: Array<{ role: string; content: string }> }
+ * The client can optionally send an initial `history` array for conversation memory,
+ * but typically a new interview starts with empty history.
  */
 app.post('/api/start-interview', async (req, res) => {
   try {
-    const { difficulty = 'easy' } = req.body || {};
+    const { difficulty = 'easy', history = [] } = req.body || {};
 
     const baseState = {
       phase: 'planning',
       agent_mode: 'planner',
       user_message: `Start a ${difficulty} technical interview.`,
       difficulty,
+      history,
     };
 
     // Run one tool cycle: orchestrator + optional tools_function call
@@ -184,6 +183,7 @@ app.post('/api/start-interview', async (req, res) => {
         agent_mode: orchestrator.agent_mode,
         difficulty,
         lastToolResult: toolResult,
+        history,
       },
       rawOrchestrator: orchestrator,
     });
@@ -200,7 +200,9 @@ app.post('/api/start-interview', async (req, res) => {
  *   phase: string,
  *   agent_mode: string,
  *   difficulty?: string,
- *   last_gemini_answer?: string
+ *   last_gemini_answer?: string,
+ *   history?: Array<{ role: string; content: string }>,
+ *   transcript?: string
  * }
  */
 app.post('/api/answer', async (req, res) => {
@@ -211,14 +213,18 @@ app.post('/api/answer', async (req, res) => {
       agent_mode = 'interviewer',
       difficulty = 'easy',
       last_gemini_answer = null, // keep reading for backward compatibility but do not pass to orchestrator
+      history = [],
+      transcript = null,
     } = req.body || {};
 
-    // Build answerState without last_gemini_answer (no feeding tool text back into orchestrator)
+    // Build answerState including history and transcript so the orchestrator receives them
     const answerState = {
       phase,
       agent_mode,
       user_message: userMessage,
       difficulty,
+      history,
+      transcript,
     };
 
     const step1 = await callOrchestrator(answerState);
@@ -242,6 +248,7 @@ app.post('/api/answer', async (req, res) => {
           agent_mode: step1.agent_mode,
           difficulty,
           lastToolResult: toolResult,
+          history,
         },
         rawOrchestrator: step1,
       });
@@ -254,6 +261,7 @@ app.post('/api/answer', async (req, res) => {
           agent_mode: step1.agent_mode,
           difficulty,
           lastToolResult: null,
+          history,
         },
         rawOrchestrator: step1,
       });
