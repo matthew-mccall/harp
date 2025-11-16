@@ -28,6 +28,8 @@ export default function InterviewPage() {
   const [isProblemPanelCollapsed, setIsProblemPanelCollapsed] = useState(false);
   const [liveText, setLiveText] = useState('');
   const [audioBase64, setAudioBase64] = useState<string | undefined>(undefined);
+  const [isSTTListening, setIsSTTListening] = useState(false);
+  const [isAISpeaking, setIsAISpeaking] = useState(false);
   const ttsQueueRef = useRef<string>(''); // Track the last TTS request to avoid duplicates
   useEffect(() => {
     console.log('[LiveText] Updated:', liveText);
@@ -674,7 +676,7 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
 
         {/* Right Section - Video & Captions */}
         <div className="w-96 flex flex-col overflow-hidden">
-          <InterviewerVideo />
+          <InterviewerVideo isListening={isSTTListening} isSpeaking={isAISpeaking} />
           <LiveTranscription text={liveText} />
 
           {/* Voice Interaction Controls */}
@@ -683,6 +685,8 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
               onTranscript={handleVoiceTranscript}
               audioBase64={audioBase64}
               enabled={true}
+              onListeningChange={setIsSTTListening}
+              onSpeakingChange={setIsAISpeaking}
             />
           </div>
 

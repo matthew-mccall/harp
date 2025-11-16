@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import AudioPlayer from './AudioPlayer';
 
@@ -8,12 +8,16 @@ interface VoiceInteractionProps {
   onTranscript?: (text: string, isFinal: boolean) => void;
   audioBase64?: string;
   enabled?: boolean;
+  onListeningChange?: (listening: boolean) => void;
+  onSpeakingChange?: (speaking: boolean) => void;
 }
 
 export default function VoiceInteraction({
   onTranscript,
   audioBase64,
-  enabled = true
+  enabled = true,
+  onListeningChange,
+  onSpeakingChange,
 }: VoiceInteractionProps) {
   const [isTTSEnabled, setIsTTSEnabled] = useState(true);
 
@@ -36,6 +40,31 @@ export default function VoiceInteraction({
       console.error('[VoiceInteraction] STT error:', error);
     },
   });
+
+  // Notify parent when listening state changes
+  // This allows other components (e.g., InterviewerVideo) to react
+  // to the microphone being actively listened to.
+  useEffect(() => {
+    if (!enabled) return;
+    if (typeof onListeningChange === 'function') {
+      onListeningChange(isListening);
+    }
+    return () => {
+      // On unmount, ensure parent knows listening is off
+      if (typeof onListeningChange === 'function') {
+        onListeningChange(false);
+      }
+    };
+  }, [isListening, enabled, onListeningChange]);
+
+  // Ensure we notify parent that AI is not speaking on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof onSpeakingChange === 'function') {
+        onSpeakingChange(false);
+      }
+    };
+  }, [onSpeakingChange]);
 
   const toggleMicrophone = () => {
     if (isListening) {
@@ -103,7 +132,11 @@ export default function VoiceInteraction({
 
       {/* Audio Player for TTS */}
       {isTTSEnabled && audioBase64 && (
-        <AudioPlayer audioBase64={audioBase64} autoPlay={true} />
+        <AudioPlayer
+          audioBase64={audioBase64}
+          autoPlay={true}
+          onSpeakingChange={onSpeakingChange}
+        />
       )}
     </div>
   );

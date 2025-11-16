@@ -1,8 +1,8 @@
 'use client';
 
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { PerspectiveCamera, useFBX } from '@react-three/drei';
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
 function InterviewerModel() {
@@ -50,7 +50,27 @@ function InterviewerModel() {
   return <primitive object={interviewerModel} />;
 }
 
-function Scene() {
+function Scene({ isListening, isSpeaking }: { isListening?: boolean; isSpeaking?: boolean }) {
+  const groupRef = useRef<THREE.Group>(null);
+
+  // Bob the character up and down comically when listening
+  useFrame(({ clock }, delta) => {
+    const g = groupRef.current;
+    if (!g) return;
+
+    const t = clock.getElapsedTime();
+    // Prefer AI speaking state; fall back to listening if speaking is undefined
+    const active = typeof isSpeaking === 'boolean' ? isSpeaking : !!isListening;
+    const targetY = active ? Math.sin(t * 15) * 0.05 : 0; // speed=5, amplitude=0.05m
+    // Small playful tilt when listening
+    const targetRotZ = active ? Math.sin(t * 2) * 0.05 : 0; // ~3 deg sway
+
+    // Smoothly approach targets
+    const k = 8; // smoothing factor
+    g.position.y += (targetY - g.position.y) * Math.min(1, k * delta);
+    g.rotation.z += (targetRotZ - g.rotation.z) * Math.min(1, k * delta);
+  });
+
   return (
     <>
       <PerspectiveCamera makeDefault position={[0.05, 1.3, 1]} />
@@ -61,13 +81,15 @@ function Scene() {
       {/*<pointLight position={[-5, 5, 5]} intensity={0.5} />*/}
 
       <Suspense fallback={null}>
-        <InterviewerModel />
+        <group ref={groupRef}>
+          <InterviewerModel />
+        </group>
       </Suspense>
     </>
   );
 }
 
-export default function InterviewerVideo() {
+export default function InterviewerVideo({ isListening, isSpeaking }: { isListening?: boolean; isSpeaking?: boolean }) {
   return (
     <div className="h-64 bg-black overflow-hidden relative border-l-2 border-b-2 border-cyan-400/30 crt-screen" style={{ boxShadow: '0 0 20px rgba(0, 255, 255, 0.1)' }}>
       {/* Retro corner brackets */}
@@ -75,7 +97,7 @@ export default function InterviewerVideo() {
       <div className="absolute bottom-0 right-0 w-16 h-16 border-r-2 border-b-2 border-cyan-400/50" />
 
       <Canvas>
-        <Scene />
+        <Scene isListening={isListening} isSpeaking={isSpeaking} />
       </Canvas>
 
       {/* Retro label */}

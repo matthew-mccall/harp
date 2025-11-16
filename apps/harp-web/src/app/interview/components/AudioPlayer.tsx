@@ -6,9 +6,10 @@ interface AudioPlayerProps {
   audioBase64?: string;
   autoPlay?: boolean;
   onEnded?: () => void;
+  onSpeakingChange?: (speaking: boolean) => void;
 }
 
-export default function AudioPlayer({ audioBase64, autoPlay = true, onEnded }: AudioPlayerProps) {
+export default function AudioPlayer({ audioBase64, autoPlay = true, onEnded, onSpeakingChange }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -19,7 +20,7 @@ export default function AudioPlayer({ audioBase64, autoPlay = true, onEnded }: A
     if (!audioBase64 || !audioRef.current) return;
 
     const audio = audioRef.current;
-    
+
     // Wait for any pending play promise before modifying audio
     const loadNewAudio = async () => {
       try {
@@ -28,10 +29,12 @@ export default function AudioPlayer({ audioBase64, autoPlay = true, onEnded }: A
             // Ignore errors from previous play attempts
           });
         }
-        
+
         audio.pause();
+        // Ensure we mark speaking=false before swapping sources
+        if (onSpeakingChange) onSpeakingChange(false);
         audio.currentTime = 0;
-        
+
         const audioBlob = base64ToBlob(audioBase64, 'audio/mpeg');
         const audioUrl = URL.createObjectURL(audioBlob);
 
@@ -41,6 +44,7 @@ export default function AudioPlayer({ audioBase64, autoPlay = true, onEnded }: A
           playPromiseRef.current = audio.play();
           playPromiseRef.current.catch(err => {
             console.error('[AudioPlayer] Auto-play failed:', err);
+            if (onSpeakingChange) onSpeakingChange(false);
           });
         }
 
@@ -60,6 +64,7 @@ export default function AudioPlayer({ audioBase64, autoPlay = true, onEnded }: A
       if (playPromiseRef.current) {
         playPromiseRef.current.then(() => {
           audio.pause();
+          if (onSpeakingChange) onSpeakingChange(false);
           audio.src = '';
           if (audioUrl) {
             URL.revokeObjectURL(audioUrl);
@@ -69,19 +74,31 @@ export default function AudioPlayer({ audioBase64, autoPlay = true, onEnded }: A
         });
       } else {
         audio.pause();
+        if (onSpeakingChange) onSpeakingChange(false);
         audio.src = '';
         if (audioUrl) {
           URL.revokeObjectURL(audioUrl);
         }
       }
     };
-  }, [audioBase64, autoPlay]);
+  }, [audioBase64, autoPlay, onSpeakingChange]);
 
-  const handlePlay = () => setIsPlaying(true);
-  const handlePause = () => setIsPlaying(false);
+  const handlePlay = () => {
+    setIsPlaying(true);
+    if (onSpeakingChange) onSpeakingChange(true);
+  };
+  const handlePause = () => {
+    setIsPlaying(false);
+    if (onSpeakingChange) onSpeakingChange(false);
+  };
   const handleEnded = () => {
     setIsPlaying(false);
     if (onEnded) onEnded();
+    if (onSpeakingChange) onSpeakingChange(false);
+  };
+  const handleError = () => {
+    setIsPlaying(false);
+    if (onSpeakingChange) onSpeakingChange(false);
   };
 
   const handleTimeUpdate = () => {
@@ -124,6 +141,7 @@ export default function AudioPlayer({ audioBase64, autoPlay = true, onEnded }: A
         onPlay={handlePlay}
         onPause={handlePause}
         onEnded={handleEnded}
+        onError={handleError}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
       />
