@@ -133,6 +133,19 @@ export default function InterviewPage() {
   }, [isDraggingTerminal, isDraggingPanel]);
 
   const handleRunCode = async (code: string) => {
+  // 🔁 0) Reset idle-hint state on explicit "Run Code"
+  console.log('[RUN] Run Code clicked — resetting idle hint timer');
+  if (idleTimeoutRef.current) {
+    clearTimeout(idleTimeoutRef.current);
+    idleTimeoutRef.current = null;
+    console.log('[RUN] Cleared existing idle hint timer');
+  }
+
+  // Treat the current code as "already hinted/evaluated" so
+  // the idle effect will NOT schedule a new hint until code changes
+  lastHintCodeRef.current = code;
+  console.log('[RUN] Updated lastHintCodeRef to current code (length =', code.length, ')');
+
   // 1) First call our interview evaluator (no stdout yet)
   await evaluateCode(code, '');
 
@@ -176,7 +189,7 @@ export default function InterviewPage() {
       (window as any).writeToTerminal('');
     }
 
-    // (Optional) if later you want a second evaluation using stdout, you can call:
+    // (Optional) later if you want evaluation with stdout:
     // if (result.success) {
     //   await evaluateCode(code, result.stdout || '');
     // }
