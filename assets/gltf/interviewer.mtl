@@ -1,0 +1,93 @@
+# Blender 4.2.15 LTS MTL File: 'None'
+# www.blender.org
+
+newmtl interviewer.body
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/skins/bobby_03_young_female_hairless/Young_Female_Hairless.png
+map_d /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/skins/bobby_03_young_female_hairless/Young_Female_Hairless.png
+
+newmtl interviewer.dressupdoc_maryjane1
+Ns 38.455208
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/clothes/dressupdoc_maryjane1/shoesMaryJaneTexture.png
+map_d /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/clothes/dressupdoc_maryjane1/shoesMaryJaneTexture.png
+
+newmtl interviewer.eyebrow001
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/eyebrows/eyebrow001/eyebrow001.png
+map_d /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/eyebrows/eyebrow001/eyebrow001.png
+
+newmtl interviewer.eyelashes02
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/eyelashes/eyelashes02/eyelashes02.png
+map_d /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/eyelashes/eyelashes02/eyelashes02.png
+
+newmtl interviewer.female_elegantsuit01
+Ns 38.455208
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/clothes/female_elegantsuit01/female_elegantsuit01_diffuse.png
+map_d /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/clothes/female_elegantsuit01/female_elegantsuit01_diffuse.png
+map_Bump -bm 1.000000 /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/clothes/female_elegantsuit01/female_elegantsuit01_normal.png
+
+newmtl interviewer.long01
+Ns 90.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/hair/long01/long01_diffuse.png
+map_d /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/hair/long01/long01_diffuse.png
+
+newmtl interviewer.low-poly
+Ns 90.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/eyes/materials/brown_eye.png
+map_d /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/eyes/materials/brown_eye.png
+
+newmtl interviewer.teeth_base
+Ns 640.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/teeth/teeth_base/teeth.png
+map_d /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/teeth/teeth_base/teeth.png
+
+newmtl interviewer.tongue01
+Ns 38.455208
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/tongue/tongue01/tongue01_diffuse.png
+map_d /Users/mmccall/Library/Application Support/Blender/4.2/extensions/.user/user_default/mpfb/data/tongue/tongue01/tongue01_diffuse.png
