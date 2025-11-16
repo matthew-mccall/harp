@@ -38,6 +38,15 @@ export default function InterviewPage() {
   const lastHintCodeRef = useRef<string>('');
   const interviewStartedRef = useRef<boolean>(false); // Prevent multiple interview starts
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
+  type EmotionName = 'Angry' | 'Disgust' | 'Fear' | 'Happy' | 'Sad' | 'Surprise' | 'Neutral';
+
+  const [currentEmotion, setCurrentEmotion] = useState<{
+    emotion: EmotionName;
+    probability: number;
+  } | null>(null);
+
+// Cooldown so hints don’t spam
+const lastEmotionHintAtRef = useRef<number | null>(null);
   useEffect(() => {
     // On first mount, hydrate difficulty from localStorage if available
     if (typeof window !== 'undefined') {
@@ -249,6 +258,60 @@ export default function InterviewPage() {
   }, []);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // // TEMPORARY HARD CODE CASE REMOVE AFTER DONE
+  // useEffect(() => {
+  //   console.log('[TEST EMO] Starting 30s timer to simulate emotion change...');
+  //   const timer = setTimeout(() => {
+  //     console.log('[TEST EMO] Switching emotion → Angry (0.7)');
+  //     setCurrentEmotion({
+  //       emotion: 'Angry',
+  //       probability: 0.7,
+  //     });
+  //   }, 30000); // 30 seconds  
+
+  //   return () => clearTimeout(timer);
+  // }, []);
+
+
+  // EMOTION → HINT TRIGGER
+  useEffect(() => {
+    if (!interviewState) return;
+    if (!currentEmotion) return;
+
+    const { emotion, probability } = currentEmotion;
+
+    // Trigger condition
+    const angry = emotion === 'Angry' && probability >= 0.3;
+    const sad = emotion === 'Sad' && probability >= 0.5;
+
+    // Skip if emotion is not concerning
+    if (!angry && !sad) return;
+
+    // Cooldown (prevent too many emotional hints)
+    const now = Date.now();
+    const cooldown = 20000; // 20s
+
+    if (lastEmotionHintAtRef.current && now - lastEmotionHintAtRef.current < cooldown) {
+      console.log('[EMO] In cooldown, not sending hint.');
+      return;
+    }
+
+    console.log('[EMO] Emotion threshold exceeded → sending hint.', currentEmotion);
+    lastEmotionHintAtRef.current = now;
+
+    // Trigger the same hint system
+    sendIdleHint();
+
+    // Sync with idle hint system
+    lastHintCodeRef.current = currentCode;
+    if (idleTimeoutRef.current) {
+      clearTimeout(idleTimeoutRef.current);
+      idleTimeoutRef.current = null;
+    }
+  }, [currentEmotion, interviewState, currentCode]);
+
+
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!containerRef.current) return;
@@ -280,7 +343,7 @@ export default function InterviewPage() {
   }, [isDraggingTerminal]);
 
   const handleRunCode = async (code: string) => {
-  // 🔁 0) Reset idle-hint state on explicit "Run Code"
+  // reset idle-hint state on explicit "Run Code"
   console.log('[RUN] Run Code clicked — resetting idle hint timer');
   if (idleTimeoutRef.current) {
     clearTimeout(idleTimeoutRef.current);
