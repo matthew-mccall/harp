@@ -148,7 +148,7 @@ export default function UserCamera() {
         autoPlay
         playsInline
         muted
-        className={`w-full h-full object-cover ${isCameraOn ? 'block' : 'hidden'}`}
+        className={`w-full h-full object-cover -scale-x-100 ${isCameraOn ? 'block' : 'hidden'}`}
       />
 
       {!isCameraOn && (
