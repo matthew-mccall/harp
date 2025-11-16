@@ -162,10 +162,53 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
     }, 0);
   };
 
-  const evaluateCode = async (code: string, stdout: string) => {
+
+  const requestFinalFeedback = async (): Promise<string> => {
+    if (!interviewState) {
+      console.log('[FEEDBACK] Skipped — no interviewState yet.');
+      return '';
+    }
+
+    try {
+      console.log('[FEEDBACK] Requesting final interview feedback...');
+      const response = await fetch('http://localhost:4000/api/evaluate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: `The coding interview is now complete.
+
+  Here is the full interview transcript (questions, hints, and candidate interactions):
+  ${liveText}
+
+  Please provide FINAL INTERVIEW FEEDBACK on the candidate as if you are a human interviewer. 
+  Include:
+  - 2–3 strengths you observed.
+  - 2–3 areas for improvement.
+  Keep it concise and focused on how they can improve in future interviews.`,
+          difficulty: interviewState?.difficulty || 'easy',
+        }),
+      });
+
+      const data = await response.json();
+      console.log('[FEEDBACK] Final feedback response:', data);
+
+      const feedbackMessage: string = data.messageToUser || '';
+      return feedbackMessage;
+    } catch (error) {
+      console.error('[FEEDBACK] Failed to fetch final feedback:', error);
+      return 'Failed to generate final interview feedback.';
+    }
+  };
+
+  const evaluateCode = async (code: string, stdout: string): Promise<{
+    isCorrect: boolean;
+    message: string;
+  }> => {
     if (!interviewState) {
       console.log('[EVAL] Skipped — no interviewState yet.');
-      return;
+      return { isCorrect: false, message: '' };
     }
 
     console.log('[EVAL] Evaluating code with stdout length:', stdout.length);
@@ -177,30 +220,48 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          prompt: `The candidate has just run their solution code for the current interview question.\n\nHere is the current interview context (question + hints):\n${liveText}\n\nHere is the candidate's code:\n\`\`\`python\n${code}\n\`\`\`\n\nHere is the program output when run:\n\`\`\`\n${stdout}\n\`\`\`\n\nEvaluate whether this solution correctly solves the interview problem. Respond with: (1) a verdict ("correct" or "incorrect"), and (2) one or two sentences of feedback. Be concise. Do NOT introduce a new problem or ask a different question.`,
+          prompt: `The candidate has just run their solution code for the current interview question.
+
+  Here is the current interview context (question + hints):
+  ${liveText}
+
+  Here is the candidate's code:
+  \`\`\`python
+  ${code}
+  \`\`\`
+
+  Here is the program output when run:
+  \`\`\`
+  ${stdout}
+  \`\`\`
+
+  Evaluate whether this solution correctly solves the interview problem. 
+  Respond with: (1) a verdict in the form **"Verdict: correct."** or **"Verdict: incorrect."**, 
+  and (2) one or two sentences of feedback. Be concise. 
+  Do NOT introduce a new problem or ask a different question.`,
           difficulty: interviewState?.difficulty || 'easy',
         }),
       });
 
       const data = await response.json();
       console.log('[EVAL] Evaluation response:', data);
-      const evalMessage = data.messageToUser || '';
-      setLiveText((prev) =>
-        prev
-          ? `${prev}\n\nEvaluation: ${evalMessage}`
-          : evalMessage
-      );
-      // Generate TTS for evaluation
-      if (evalMessage) {
-        await generateTTS(evalMessage);
-      }
+      const evalMessage: string = data.messageToUser || '';
+
+      // Parse verdict from the text (simple heuristic)
+      const lower = evalMessage.toLowerCase();
+      const isCorrect =
+        lower.includes('verdict: correct') ||
+        lower.startsWith('verdict: correct');
+
+      console.log('[EVAL] Parsed correctness:', isCorrect);
+
+      return { isCorrect, message: evalMessage };
     } catch (error) {
       console.error('[EVAL] Failed to evaluate solution:', error);
-      setLiveText((prev) =>
-        prev
-          ? `${prev}\n\nEvaluation: Failed to evaluate solution.`
-          : 'Failed to evaluate solution.'
-      );
+      return {
+        isCorrect: false,
+        message: 'Failed to evaluate solution.',
+      };
     } finally {
       // After any evaluation, treat this code as the latest activity and clear the idle hint timer.
       console.log('[EVAL] Resetting idle hint state after evaluation');
@@ -278,11 +339,11 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
     if (!interviewState) return;
     if (!currentEmotion) return;
 
-    const { emotion, probability } = currentEmotion;
+    const { emotion } = currentEmotion;
 
     // Trigger condition
-    const angry = emotion === 'Angry' && probability >= 0.3;
-    const sad = emotion === 'Sad' && probability >= 0.5;
+    const angry = emotion === 'Angry';
+    const sad = emotion === 'Sad';
 
     // Skip if emotion is not concerning
     if (!angry && !sad) return;
@@ -397,7 +458,35 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
     }
 
     if (result.success) {
-      await evaluateCode(code, result.stdout || result.stderr || '');
+      const evalResult = await evaluateCode(
+        code,
+        result.stdout || result.stderr || ''
+      );
+
+      const evalMessage = evalResult.message;
+      const isCorrect = evalResult.isCorrect;
+      console.log('[RUN] Evaluation correctness:', isCorrect);
+
+      if (isCorrect) {
+        // Get final feedback BEFORE updating the UI
+        const feedbackMessage = await requestFinalFeedback();
+
+        const combined = `Evaluation: ${evalMessage}\n\nFinal Feedback: ${feedbackMessage}`;
+
+        setLiveText((prev) =>
+          prev ? `${prev}\n\n${combined}` : combined
+        );
+
+        await generateTTS(combined);
+      } else {
+        // Only evaluation text
+        const evalOnly = `Evaluation: ${evalMessage}`;
+        setLiveText((prev) =>
+          prev ? `${prev}\n\n${evalOnly}` : evalOnly
+        );
+
+        await generateTTS(evalOnly);
+      }
     }
   } catch (error) {
     console.error('Error executing code:', error);
