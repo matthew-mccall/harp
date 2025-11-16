@@ -17,7 +17,7 @@
             "cjs"
           ],
           "bundle": false,
-          "main": "apps/harp-agents/src/server.ts",
+          "main": "apps/harp-agents/src/main.ts",
           "tsConfig": "apps/harp-agents/tsconfig.app.json",
           "assets": [
             "apps/harp-agents/src/assets"

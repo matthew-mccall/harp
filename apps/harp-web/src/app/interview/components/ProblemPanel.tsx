@@ -17,40 +17,30 @@ interface TestCase {
 interface ProblemPanelProps {
   isCollapsed: boolean;
   onToggle: () => void;
+  interviewState?: any;
+  problemText?: string;
 }
 
-export default function ProblemPanel({ isCollapsed, onToggle }: ProblemPanelProps) {
+export default function ProblemPanel({ isCollapsed, onToggle, interviewState, problemText }: ProblemPanelProps) {
   const [activeTab, setActiveTab] = useState<'description' | 'testcases'>('description');
 
-  // Mock problem data - replace with actual data from props/API
+  // Extract problem data from interview state or use defaults
+  const difficulty = interviewState?.difficulty || 'medium';
+  const displayDifficulty = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+  
+  // Use the actual problem text from the interview
+  const problemDescription = problemText || 'Waiting for interview to start...';
+  
   const problem = {
-    title: "Two Sum",
-    difficulty: "Easy",
-    description: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice.",
-    examples: [
-      {
-        input: "nums = [2,7,11,15], target = 9",
-        output: "[0,1]",
-        explanation: "Because nums[0] + nums[1] == 9, we return [0, 1]."
-      },
-      {
-        input: "nums = [3,2,4], target = 6",
-        output: "[1,2]"
-      }
-    ],
-    constraints: [
-      "2 <= nums.length <= 10⁴",
-      "-10⁹ <= nums[i] <= 10⁹",
-      "-10⁹ <= target <= 10⁹",
-      "Only one valid answer exists."
-    ]
+    title: "Coding Challenge",
+    difficulty: displayDifficulty,
+    description: problemDescription,
+    examples: [] as Example[],
+    constraints: [] as string[]
   };
 
-  const testCases: TestCase[] = [
-    { input: "[2,7,11,15], 9", expectedOutput: "[0,1]", passed: true },
-    { input: "[3,2,4], 6", expectedOutput: "[1,2]", passed: false },
-    { input: "[3,3], 6", expectedOutput: "[0,1]", passed: undefined }
-  ];
+  // Test cases can be extracted from interview state in the future
+  const testCases: TestCase[] = [];
 
   return (
     <div 

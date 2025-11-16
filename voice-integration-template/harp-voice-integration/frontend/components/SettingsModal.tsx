@@ -9,17 +9,32 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [difficulty, setDifficulty] = useState('medium');
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [selectedVoiceId, setSelectedVoiceId] = useState('');
+  const [availableVoices, setAvailableVoices] = useState<any[]>([]);
+  
   useEffect(() => {
-  if (typeof window !== 'undefined') {
-    const stored = window.localStorage.getItem('harp_interview_difficulty');
-    if (stored === 'easy' || stored === 'medium' || stored === 'hard') {
-      setDifficulty(stored);
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('harp_interview_difficulty');
+      if (stored === 'easy' || stored === 'medium' || stored === 'hard') {
+        setDifficulty(stored);
+      }
+      
+      const voicePref = window.localStorage.getItem('harp_voice_enabled');
+      setVoiceEnabled(voicePref === 'true');
+      
+      const voiceId = window.localStorage.getItem('harp_voice_id');
+      if (voiceId) {
+        setSelectedVoiceId(voiceId);
+      }
     }
-  }
-}, []);
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      // Fetch available voices from 11Labs
+      fetchVoices();
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -27,6 +42,33 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
+
+  const fetchVoices = async () => {
+    try {
+      const response = await fetch('http://localhost:4000/api/voices');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableVoices(data.voices || []);
+      }
+    } catch (error) {
+      console.error('[Settings] Failed to fetch voices:', error);
+    }
+  };
+
+  const handleSave = () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('harp_interview_difficulty', difficulty);
+      window.localStorage.setItem('harp_voice_enabled', String(voiceEnabled));
+      if (selectedVoiceId) {
+        window.localStorage.setItem('harp_voice_id', selectedVoiceId);
+      }
+    }
+    onClose();
+    // Reload page to apply voice settings
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -40,7 +82,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
       {/* Retro Settings Modal */}
       <div
-        className="relative w-full max-w-2xl mx-4 bg-black border-4 border-green-400/50 animate-scaleIn"
+        className="relative w-full max-w-2xl mx-4 bg-black border-4 border-green-400/50 animate-scaleIn max-h-[80vh] overflow-y-auto custom-scrollbar"
         style={{ 
           boxShadow: '0 0 30px rgba(0, 255, 0, 0.3), inset 0 0 20px rgba(0, 255, 0, 0.1)',
           clipPath: 'polygon(0 0, calc(100% - 30px) 0, 100% 30px, 100% 100%, 30px 100%, 0 calc(100% - 30px))'
@@ -82,7 +124,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-6">
+        <div className="p-6 space-y-6">
           {/* Interview Settings Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
@@ -97,13 +139,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             >
               <select
                 value={difficulty}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setDifficulty(value);
-                  if (typeof window !== 'undefined') {
-                    window.localStorage.setItem('harp_interview_difficulty', value);
-                  }
-                }}
+                onChange={(e) => setDifficulty(e.target.value)}
                 className="bg-black border-2 border-green-400/50 px-3 py-2 text-xs text-green-400 font-mono focus:outline-none focus:border-green-400 transition-colors [&>option]:bg-black [&>option]:text-green-400"
               >
                 <option value="easy">EASY</option>
@@ -137,6 +173,45 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </SettingItem>
           </div>
 
+          {/* Voice Settings Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <h3 className="text-xs font-mono text-cyan-400 tracking-widest uppercase">
+                &gt; VOICE_CONFIG
+              </h3>
+            </div>
+
+            <SettingItem
+              label="Enable Voice Interaction"
+              description="Allow speech-to-text and text-to-speech"
+            >
+              <ToggleSwitch 
+                checked={voiceEnabled}
+                onChange={(checked) => setVoiceEnabled(checked)}
+              />
+            </SettingItem>
+
+            {voiceEnabled && (
+              <SettingItem
+                label="AI Voice"
+                description="Select the voice for AI interviewer responses"
+              >
+                <select 
+                  value={selectedVoiceId}
+                  onChange={(e) => setSelectedVoiceId(e.target.value)}
+                  className="bg-black border-2 border-green-400/50 px-3 py-2 text-xs text-green-400 font-mono focus:outline-none focus:border-green-400 transition-colors [&>option]:bg-black [&>option]:text-green-400"
+                >
+                  <option value="">DEFAULT</option>
+                  {availableVoices.map((voice) => (
+                    <option key={voice.voice_id} value={voice.voice_id}>
+                      {voice.name.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+              </SettingItem>
+            )}
+          </div>
+
           {/* Audio/Video Settings Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
@@ -157,48 +232,6 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               description="Allow microphone access for voice responses"
             >
               <ToggleSwitch defaultChecked />
-            </SettingItem>
-
-            <SettingItem
-              label="AI Voice"
-              description="Enable text-to-speech for interviewer"
-            >
-              <ToggleSwitch defaultChecked />
-            </SettingItem>
-          </div>
-
-          {/* Voice Integration Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-4">
-              <h3 className="text-xs font-mono text-cyan-400 tracking-widest uppercase">
-                &gt; VOICE_CONFIG
-              </h3>
-            </div>
-
-            <SettingItem
-              label="Voice Interaction"
-              description="Enable speech-to-text and text-to-speech"
-            >
-              <ToggleSwitch defaultChecked />
-            </SettingItem>
-
-            <SettingItem
-              label="Auto-play TTS"
-              description="Automatically play interviewer responses"
-            >
-              <ToggleSwitch defaultChecked />
-            </SettingItem>
-
-            <SettingItem
-              label="Voice Language"
-              description="Speech recognition language"
-            >
-              <select defaultValue="en-US" className="bg-black border-2 border-green-400/50 px-3 py-2 text-xs text-green-400 font-mono focus:outline-none focus:border-green-400 transition-colors [&>option]:bg-black [&>option]:text-green-400">
-                <option value="en-US">ENGLISH (US)</option>
-                <option value="en-GB">ENGLISH (UK)</option>
-                <option value="es-ES">SPANISH</option>
-                <option value="fr-FR">FRENCH</option>
-              </select>
             </SettingItem>
           </div>
 
@@ -242,7 +275,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             [CANCEL]
           </button>
           <button
-            onClick={onClose}
+            onClick={handleSave}
             className="px-4 py-2 text-xs font-mono text-green-400 border-2 border-green-400/50 hover:border-green-400 hover:shadow-[0_0_10px_rgba(0,255,0,0.5)] transition-all duration-300"
           >
             [SAVE_CHANGES]
@@ -273,12 +306,41 @@ function SettingItem({
   );
 }
 
-function ToggleSwitch({ defaultChecked = false }: { defaultChecked?: boolean }) {
+function ToggleSwitch({ 
+  defaultChecked = false,
+  checked,
+  onChange 
+}: { 
+  defaultChecked?: boolean;
+  checked?: boolean;
+  onChange?: (checked: boolean) => void;
+}) {
+  const [isChecked, setIsChecked] = useState(checked ?? defaultChecked);
+
+  useEffect(() => {
+    if (checked !== undefined) {
+      setIsChecked(checked);
+    }
+  }, [checked]);
+
+  const handleToggle = () => {
+    const newValue = !isChecked;
+    setIsChecked(newValue);
+    if (onChange) {
+      onChange(newValue);
+    }
+  };
+
   return (
     <label className="relative inline-flex items-center cursor-pointer">
-      <input type="checkbox" className="sr-only peer" defaultChecked={defaultChecked} />
+      <input 
+        type="checkbox" 
+        className="sr-only peer" 
+        checked={isChecked}
+        onChange={handleToggle}
+      />
       <div className="w-11 h-6 bg-black border-2 border-green-400/30 peer peer-checked:border-green-400 transition-all">
-        <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-gray-700 transition-all peer-checked:translate-x-5 peer-checked:bg-green-400 peer-checked:shadow-[0_0_8px_rgba(0,255,0,0.6)]" />
+        <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-gray-700 transition-all ${isChecked ? 'translate-x-5 bg-green-400 shadow-[0_0_8px_rgba(0,255,0,0.6)]' : ''}`} />
       </div>
     </label>
   );

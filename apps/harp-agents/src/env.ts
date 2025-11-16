@@ -48,4 +48,8 @@ export const GRADIENT_AGENT_CHAT_URL: string = _GRADIENT_AGENT_CHAT_URL;
 // Reserved/optional for future use; keep exported with precise types
 export const GRADIENT_AGENT_ID: string | undefined = env.GRADIENT_AGENT_ID;
 export const GRADIENT_API_KEY: string | undefined = env.GRADIENT_API_KEY;
+
+// 11Labs TTS Configuration (optional)
+export const ELEVENLABS_API_KEY: string | undefined = env.ELEVENLABS_API_KEY;
+export const ELEVENLABS_VOICE_ID: string | undefined = env.ELEVENLABS_VOICE_ID;
 export const GEMINI_API_KEY: string | undefined = env.GEMINI_API_KEY;

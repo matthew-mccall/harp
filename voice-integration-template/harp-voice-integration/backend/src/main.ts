@@ -15,6 +15,8 @@ import {
   GRADIENT_AGENT_CHAT_URL,
   GRADIENT_AGENT_AK,
   TOOLS_FUNCTION_URL,
+  ELEVENLABS_API_KEY,
+  ELEVENLABS_VOICE_ID,
 } from './env';
 
 import express from 'express';
@@ -161,12 +163,6 @@ function getErrorLogMessage(err: unknown): string {
   }
 }
 
-/**
- * Call the Gradient Orchestrator Agent via /api/v1/chat/completions
- *
- * We send the `inputPayload` as a JSON string in the user message, because
- * the agent prompt expects JSON input and returns JSON output.
- */
 async function callOrchestrator(inputPayload: OrchestratorInputBase): Promise<OrchestratorResponse> {
   const body = {
     messages: [
@@ -189,34 +185,21 @@ async function callOrchestrator(inputPayload: OrchestratorInputBase): Promise<Or
     body,
   });
 
-  // Agent response will be in choices[0].message.content as a string
   const content = (resData as any)?.choices?.[0]?.message?.content as unknown;
 
   if (!content) {
     throw new Error('No content returned from Gradient agent');
   }
 
-  // Your agent always returns JSON, so parse it
   try {
     const parsed = typeof content === 'string' ? JSON.parse(content) : (content as OrchestratorResponse);
     return parsed as OrchestratorResponse;
   } catch (e) {
-    // eslint-disable-next-line no-console
     console.error('Failed to parse agent JSON content:', content);
     throw e;
   }
 }
 
-/**
- * Call your DigitalOcean tools_function.
- * `args` should be exactly the "arguments" object your orchestrator returns:
- * {
- *   tool: 'gemini_chat',
- *   agent_mode: 'planner',
- *   prompt: '...',
- *   extra: { ... }
- * }
- */
 async function callToolsFunction(args: ToolsFunctionArgs): Promise<ToolsFunctionResult> {
   const data = await fetchJson<ToolsFunctionResult>(TOOLS_FUNCTION_URL, {
     method: 'POST',
@@ -225,24 +208,14 @@ async function callToolsFunction(args: ToolsFunctionArgs): Promise<ToolsFunction
   return data;
 }
 
-/**
- * Utility: run one "tool cycle":
- * - Calls the orchestrator once with baseState.
- * - If next_action is neither "call_gemini" nor "call_leetcode_api", returns { orchestrator, toolResult: null, messageToUser }.
- * - If next_action is one of those values, calls the tools_function with the provided arguments,
- *   computes messageToUser from the tool result, and returns { orchestrator, toolResult, messageToUser }.
- * - Does NOT feed tool text back into the agent.
- */
 async function runToolCycle(baseState: OrchestratorInputBase): Promise<{
   orchestrator: OrchestratorResponse;
   toolResult: ToolsFunctionResult | null;
   messageToUser: string;
 }> {
-  // Step 1: ask orchestrator once
   const step1 = await callOrchestrator(baseState);
 
   if (step1.next_action !== 'call_gemini' && step1.next_action !== 'call_leetcode_api') {
-    // No tool call needed; just return the orchestrator response
     return {
       orchestrator: step1,
       toolResult: null,
@@ -250,7 +223,6 @@ async function runToolCycle(baseState: OrchestratorInputBase): Promise<{
     };
   }
 
-  // Call tools_function (Gemini or LeetCode wrapper)
   const toolArgs = step1.tool_call?.arguments || {};
   const toolResult = await callToolsFunction(toolArgs);
 
@@ -269,13 +241,14 @@ async function runToolCycle(baseState: OrchestratorInputBase): Promise<{
 interface StartInterviewBody {
   difficulty?: Difficulty;
   history?: HistoryEntry[];
+  enableTTS?: boolean;
 }
 
 app.post(
   '/api/start-interview',
   async (req: Request<unknown, unknown, StartInterviewBody>, res: Response) => {
     try {
-      const { difficulty = 'easy', history = [] } = req.body ?? {};
+      const { difficulty = 'easy', history = [], enableTTS = false } = req.body ?? {};
 
       const baseState: OrchestratorInputBase = {
         phase: 'planning',
@@ -287,8 +260,18 @@ app.post(
 
       const { orchestrator, toolResult, messageToUser } = await runToolCycle(baseState);
 
+      // Generate TTS if enabled
+      let audioBase64: string | undefined;
+      if (enableTTS && messageToUser) {
+        const ttsResult = await textToSpeech({ text: messageToUser });
+        if (ttsResult.success) {
+          audioBase64 = ttsResult.audioBase64;
+        }
+      }
+
       res.json({
         messageToUser,
+        audioBase64,
         state: {
           phase: orchestrator.phase,
           agent_mode: orchestrator.agent_mode,
@@ -299,7 +282,6 @@ app.post(
         rawOrchestrator: orchestrator,
       });
     } catch (err: unknown) {
-      // eslint-disable-next-line no-console
       console.error('Error in /api/start-interview:', getErrorLogMessage(err));
       res.status(500).json({ error: 'Failed to start interview' });
     }
@@ -312,9 +294,10 @@ interface AnswerBody {
   phase?: string;
   agent_mode?: AgentMode;
   difficulty?: Difficulty;
-  last_gemini_answer?: string | null; // kept for backward compatibility but not used
+  last_gemini_answer?: string | null;
   history?: HistoryEntry[];
   transcript?: string | null;
+  enableTTS?: boolean;
 }
 
 app.post('/api/answer', async (req: Request<unknown, unknown, AnswerBody>, res: Response) => {
@@ -324,9 +307,9 @@ app.post('/api/answer', async (req: Request<unknown, unknown, AnswerBody>, res: 
       phase = 'interviewing',
       agent_mode = 'interviewer',
       difficulty = 'easy',
-      // last_gemini_answer is ignored intentionally
       history = [],
       transcript = null,
+      enableTTS = false,
     } = req.body ?? {};
 
     const answerState: OrchestratorInputBase = {
@@ -345,8 +328,18 @@ app.post('/api/answer', async (req: Request<unknown, unknown, AnswerBody>, res: 
       const toolResult = await callToolsFunction(toolArgs);
       const geminiAnswer = extractMessageFromToolResult(toolResult);
 
+      // Generate TTS if enabled
+      let audioBase64: string | undefined;
+      if (enableTTS && geminiAnswer) {
+        const ttsResult = await textToSpeech({ text: geminiAnswer });
+        if (ttsResult.success) {
+          audioBase64 = ttsResult.audioBase64;
+        }
+      }
+
       res.json({
         messageToUser: geminiAnswer,
+        audioBase64,
         state: {
           phase: step1.phase,
           agent_mode: step1.agent_mode,
@@ -357,8 +350,18 @@ app.post('/api/answer', async (req: Request<unknown, unknown, AnswerBody>, res: 
         rawOrchestrator: step1,
       });
     } else {
+      // Generate TTS if enabled
+      let audioBase64: string | undefined;
+      if (enableTTS && step1.message_to_user) {
+        const ttsResult = await textToSpeech({ text: step1.message_to_user });
+        if (ttsResult.success) {
+          audioBase64 = ttsResult.audioBase64;
+        }
+      }
+
       res.json({
         messageToUser: step1.message_to_user,
+        audioBase64,
         state: {
           phase: step1.phase,
           agent_mode: step1.agent_mode,
@@ -370,7 +373,6 @@ app.post('/api/answer', async (req: Request<unknown, unknown, AnswerBody>, res: 
       });
     }
   } catch (err: unknown) {
-    // eslint-disable-next-line no-console
     console.error('Error in /api/answer:', getErrorLogMessage(err));
     res.status(500).json({ error: 'Failed to process answer' });
   }
@@ -380,11 +382,12 @@ app.post('/api/answer', async (req: Request<unknown, unknown, AnswerBody>, res: 
 interface HintBody {
   prompt?: string;
   difficulty?: Difficulty;
+  enableTTS?: boolean;
 }
 
 app.post('/api/hint', async (req: Request<unknown, unknown, HintBody>, res: Response) => {
   try {
-    const { prompt = '', difficulty = 'easy' } = req.body ?? {};
+    const { prompt = '', difficulty = 'easy', enableTTS = false } = req.body ?? {};
 
     const toolArgs: ToolsFunctionArgs = {
       tool: 'gemini_chat',
@@ -398,12 +401,21 @@ app.post('/api/hint', async (req: Request<unknown, unknown, HintBody>, res: Resp
     const toolResult = await callToolsFunction(toolArgs);
     const messageToUser = extractMessageFromToolResult(toolResult);
 
+    // Generate TTS if enabled
+    let audioBase64: string | undefined;
+    if (enableTTS && messageToUser) {
+      const ttsResult = await textToSpeech({ text: messageToUser });
+      if (ttsResult.success) {
+        audioBase64 = ttsResult.audioBase64;
+      }
+    }
+
     res.json({
       messageToUser,
+      audioBase64,
       rawToolResult: toolResult,
     });
   } catch (err: unknown) {
-    // eslint-disable-next-line no-console
     console.error('Error in /api/hint:', getErrorLogMessage(err));
     res.status(500).json({ error: 'Failed to generate hint' });
   }
@@ -413,15 +425,15 @@ app.post('/api/hint', async (req: Request<unknown, unknown, HintBody>, res: Resp
 interface EvaluateBody {
   prompt?: string;
   difficulty?: Difficulty;
+  enableTTS?: boolean;
 }
 
 app.post(
   '/api/evaluate',
   async (req: Request<unknown, unknown, EvaluateBody>, res: Response) => {
-    // eslint-disable-next-line no-console
     console.log('[API/EVALUATE] Incoming request body:', req.body);
     try {
-      const { prompt = '', difficulty = 'easy' } = req.body ?? {};
+      const { prompt = '', difficulty = 'easy', enableTTS = false } = req.body ?? {};
 
       const toolArgs: ToolsFunctionArgs = {
         tool: 'gemini_chat',
@@ -431,85 +443,89 @@ app.post(
           difficulty,
         },
       };
-      // eslint-disable-next-line no-console
       console.log('[API/EVALUATE] toolArgs:', toolArgs);
 
       const toolResult = await callToolsFunction(toolArgs);
-      // eslint-disable-next-line no-console
       console.log('[API/EVALUATE] raw toolResult:', toolResult);
 
       const messageToUser = extractMessageFromToolResult(toolResult);
 
+      // Generate TTS if enabled
+      let audioBase64: string | undefined;
+      if (enableTTS && messageToUser) {
+        const ttsResult = await textToSpeech({ text: messageToUser });
+        if (ttsResult.success) {
+          audioBase64 = ttsResult.audioBase64;
+        }
+      }
+
       res.json({
         messageToUser,
+        audioBase64,
         rawToolResult: toolResult,
       });
     } catch (err: unknown) {
-      // eslint-disable-next-line no-console
       console.error('[API/EVALUATE] Error:', getErrorLogMessage(err));
       res.status(500).json({ error: 'Failed to evaluate solution' });
     }
   }
 );
 
-app.get('/', (_req: Request, res: Response) => {
-  res.send('Mock interview backend is running');
-});
+// POST /api/tts - Convert text to speech
+interface TTSBody {
+  text: string;
+  voiceId?: string;
+}
 
-// ============================================================================
-// TTS ENDPOINTS
-// ============================================================================
-
-/**
- * POST /api/tts
- * Convert text to speech using 11Labs
- */
-app.post('/api/tts', async (req: Request, res: Response) => {
+app.post('/api/tts', async (req: Request<unknown, unknown, TTSBody>, res: Response) => {
   try {
-    const { text, voiceId, voiceSettings } = req.body;
+    const { text, voiceId } = req.body ?? {};
 
-    if (!text || typeof text !== 'string') {
+    if (!text) {
       return res.status(400).json({ error: 'Text is required' });
     }
 
-    console.log('[TTS] Generating speech for text:', text.substring(0, 100) + '...');
-
-    const result = await textToSpeech({
-      text,
-      voiceId,
-      voiceSettings,
-    });
+    const result = await textToSpeech({ text, voiceId });
 
     if (!result.success) {
       return res.status(500).json({ error: result.error });
     }
 
-    return res.json({
+    res.json({
       success: true,
       audioBase64: result.audioBase64,
     });
   } catch (err: unknown) {
-    console.error('[TTS] Error:', getErrorLogMessage(err));
-    return res.status(500).json({ error: 'Failed to generate speech' });
+    console.error('[API/TTS] Error:', getErrorLogMessage(err));
+    res.status(500).json({ error: 'Failed to generate speech' });
   }
 });
 
-/**
- * GET /api/voices
- * Get available voices from 11Labs
- */
+// GET /api/voices - Get available 11Labs voices
 app.get('/api/voices', async (_req: Request, res: Response) => {
   try {
     const voices = await getVoices();
-    return res.json(voices);
+    res.json(voices);
   } catch (err: unknown) {
-    console.error('[VOICES] Error:', getErrorLogMessage(err));
-    return res.status(500).json({ error: 'Failed to fetch voices' });
+    console.error('[API/VOICES] Error:', getErrorLogMessage(err));
+    res.status(500).json({ error: 'Failed to fetch voices' });
   }
 });
 
-// PORT is already a number from env.ts
+app.get('/', (_req: Request, res: Response) => {
+  res.send('Mock interview backend is running');
+});
+
 app.listen(PORT, () => {
-  // eslint-disable-next-line no-console
   console.log(`🚀 Server listening on http://localhost:${PORT}`);
+  
+  // Log TTS configuration status
+  if (ELEVENLABS_API_KEY) {
+    console.log('✅ 11Labs TTS enabled');
+    if (ELEVENLABS_VOICE_ID) {
+      console.log(`   Voice ID: ${ELEVENLABS_VOICE_ID}`);
+    }
+  } else {
+    console.log('⚠️  11Labs TTS not configured (missing API key)');
+  }
 });

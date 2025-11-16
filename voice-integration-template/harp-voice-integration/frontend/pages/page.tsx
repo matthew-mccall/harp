@@ -26,132 +26,27 @@ export default function InterviewPage() {
   const [isDraggingTerminal, setIsDraggingTerminal] = useState(false);
   const [isProblemPanelCollapsed, setIsProblemPanelCollapsed] = useState(false);
   const [liveText, setLiveText] = useState('');
-  const [audioBase64, setAudioBase64] = useState<string | undefined>(undefined);
-  const ttsQueueRef = useRef<string>(''); // Track the last TTS request to avoid duplicates
-  useEffect(() => {
-    console.log('[LiveText] Updated:', liveText);
-  }, [liveText]);
   const [interviewState, setInterviewState] = useState<any | null>(null);
-
   const [currentCode, setCurrentCode] = useState('');
+  const [audioBase64, setAudioBase64] = useState<string | undefined>();
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  
   const idleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastHintCodeRef = useRef<string>('');
-  const interviewStartedRef = useRef<boolean>(false); // Prevent multiple interview starts
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
+
   useEffect(() => {
-    // On first mount, hydrate difficulty from localStorage if available
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('harp_interview_difficulty');
       if (stored === 'easy' || stored === 'medium' || stored === 'hard') {
         setDifficulty(stored);
       }
+      
+      // Check voice preference
+      const voicePref = window.localStorage.getItem('harp_voice_enabled');
+      setVoiceEnabled(voicePref === 'true');
     }
   }, []);
-
-  // Generate TTS from text
-  const generateTTS = async (text: string) => {
-    // Avoid duplicate TTS requests for the same text
-    if (ttsQueueRef.current === text) {
-      console.log('[TTS] Skipping duplicate request for same text');
-      return;
-    }
-    
-    ttsQueueRef.current = text;
-    
-    try {
-      console.log('[TTS] Generating speech for:', text.substring(0, 50) + '...');
-      
-      // Clear previous audio before generating new one
-      setAudioBase64(undefined);
-      
-      const response = await fetch('http://localhost:4000/api/tts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text }),
-      });
-
-      const data = await response.json();
-      
-      if (data.success && data.audioBase64) {
-        console.log('[TTS] Audio generated successfully');
-        setAudioBase64(data.audioBase64);
-      } else {
-        console.error('[TTS] Failed:', data.error);
-      }
-    } catch (error) {
-      console.error('[TTS] Error:', error);
-    }
-  };
-
-  // Handle voice transcription
-  const handleVoiceTranscript = async (text: string, isFinal: boolean) => {
-    console.log('[VOICE] Transcript:', text, 'Final:', isFinal);
-    
-    if (!isFinal) {
-      // Just show interim results, don't process yet
-      return;
-    }
-    
-    // Ignore empty transcripts (happens when stopping recording)
-    const trimmedText = text.trim();
-    if (!trimmedText) {
-      console.log('[VOICE] Empty transcript, ignoring');
-      return;
-    }
-    
-    // Add user's speech to transcript
-    setLiveText((prev) => 
-      prev ? `${prev}\n\nYou: ${trimmedText}` : `You: ${trimmedText}`
-    );
-    
-    // Process the voice command asynchronously without blocking
-    // This prevents the mic from getting stuck
-    setTimeout(async () => {
-      // Check if user is asking for a hint
-      const lowerText = trimmedText.toLowerCase();
-      if (lowerText.includes('hint') || lowerText.includes('help') || lowerText.includes('stuck')) {
-        console.log('[VOICE] User requested hint, triggering hint generation');
-        await sendIdleHint();
-        return;
-      }
-      
-      // Otherwise, send as a general message to the interviewer
-      if (!interviewState) {
-        console.log('[VOICE] No interview state yet, skipping');
-        return;
-      }
-      
-      try {
-        console.log('[VOICE] Sending user message to interviewer');
-        const response = await fetch('http://localhost:4000/api/hint', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            prompt: `The candidate said: "${trimmedText}"\n\nContext of the current problem:\n${liveText}\n\nRespond naturally to what the candidate said. If they're asking a question, answer it. If they're making a comment, acknowledge it and provide guidance. Keep it conversational and helpful.`,
-            difficulty: interviewState.difficulty || 'easy',
-          }),
-        });
-        
-        const data = await response.json();
-        const responseMessage = data.messageToUser || '';
-        
-        setLiveText((prev) =>
-          prev ? `${prev}\n\nInterviewer: ${responseMessage}` : responseMessage
-        );
-        
-        // Generate TTS for the response
-        if (responseMessage) {
-          await generateTTS(responseMessage);
-        }
-      } catch (error) {
-        console.error('[VOICE] Failed to process voice input:', error);
-      }
-    }, 0);
-  };
 
   const evaluateCode = async (code: string, stdout: string) => {
     if (!interviewState) {
@@ -170,20 +65,22 @@ export default function InterviewPage() {
         body: JSON.stringify({
           prompt: `The candidate has just run their solution code for the current interview question.\n\nHere is the current interview context (question + hints):\n${liveText}\n\nHere is the candidate's code:\n\`\`\`python\n${code}\n\`\`\`\n\nHere is the program output when run:\n\`\`\`\n${stdout}\n\`\`\`\n\nEvaluate whether this solution correctly solves the interview problem. Respond with: (1) a verdict ("correct" or "incorrect"), and (2) one or two sentences of feedback. Be concise. Do NOT introduce a new problem or ask a different question.`,
           difficulty: interviewState?.difficulty || 'easy',
+          enableTTS: voiceEnabled,
         }),
       });
 
       const data = await response.json();
       console.log('[EVAL] Evaluation response:', data);
-      const evalMessage = data.messageToUser || '';
+      
       setLiveText((prev) =>
         prev
-          ? `${prev}\n\nEvaluation: ${evalMessage}`
-          : evalMessage
+          ? `${prev}\n\nEvaluation: ${data.messageToUser || ''}`
+          : data.messageToUser || ''
       );
-      // Generate TTS for evaluation
-      if (evalMessage) {
-        await generateTTS(evalMessage);
+      
+      // Set audio for TTS playback
+      if (data.audioBase64) {
+        setAudioBase64(data.audioBase64);
       }
     } catch (error) {
       console.error('[EVAL] Failed to evaluate solution:', error);
@@ -193,7 +90,6 @@ export default function InterviewPage() {
           : 'Failed to evaluate solution.'
       );
     } finally {
-      // After any evaluation, treat this code as the latest activity and clear the idle hint timer.
       console.log('[EVAL] Resetting idle hint state after evaluation');
       lastHintCodeRef.current = code;
       if (idleTimeoutRef.current) {
@@ -205,14 +101,6 @@ export default function InterviewPage() {
 
   useEffect(() => {
     const startInterview = async () => {
-      // Prevent multiple starts (React Strict Mode calls effects twice in dev)
-      if (interviewStartedRef.current) {
-        console.log('[INTERVIEW] Already started, skipping duplicate call');
-        return;
-      }
-      
-      interviewStartedRef.current = true;
-      
       console.log("STARTING INTERVIEW....");
       try {
         let diff: 'easy' | 'medium' | 'hard' = 'easy';
@@ -224,21 +112,27 @@ export default function InterviewPage() {
         }
         setDifficulty(diff);
         console.log('[INTERVIEW] Using difficulty:', diff);
+        
         const response = await fetch('http://localhost:4000/api/start-interview', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ difficulty: diff }),
+          body: JSON.stringify({ 
+            difficulty: diff,
+            enableTTS: voiceEnabled,
+          }),
         });
+        
         const data = await response.json();
         console.log("[INTERVIEW] Response data:", data);
+        
         setInterviewState(data.state);
-        const welcomeMessage = data.messageToUser || '';
-        setLiveText(welcomeMessage);
-        // Generate TTS for welcome message
-        if (welcomeMessage) {
-          await generateTTS(welcomeMessage);
+        setLiveText(data.messageToUser || '');
+        
+        // Set audio for TTS playback
+        if (data.audioBase64) {
+          setAudioBase64(data.audioBase64);
         }
       } catch (error) {
         console.error('Failed to start interview:', error);
@@ -246,7 +140,8 @@ export default function InterviewPage() {
       }
     };
     startInterview();
-  }, []);
+  }, [voiceEnabled]);
+
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -280,70 +175,66 @@ export default function InterviewPage() {
   }, [isDraggingTerminal]);
 
   const handleRunCode = async (code: string) => {
-  // 🔁 0) Reset idle-hint state on explicit "Run Code"
-  console.log('[RUN] Run Code clicked — resetting idle hint timer');
-  if (idleTimeoutRef.current) {
-    clearTimeout(idleTimeoutRef.current);
-    idleTimeoutRef.current = null;
-    console.log('[RUN] Cleared existing idle hint timer');
-  }
+    console.log('[RUN] Run Code clicked — resetting idle hint timer');
+    if (idleTimeoutRef.current) {
+      clearTimeout(idleTimeoutRef.current);
+      idleTimeoutRef.current = null;
+      console.log('[RUN] Cleared existing idle hint timer');
+    }
 
-  // Treat the current code as "already hinted/evaluated" so
-  // the idle effect will NOT schedule a new hint until code changes
-  lastHintCodeRef.current = code;
-  console.log('[RUN] Updated lastHintCodeRef to current code (length =', code.length, ')');
-
-  // 2) Then run the code in the terminal as before
-  if (typeof window !== 'undefined' && (window as any).writeToTerminal) {
-    (window as any).writeToTerminal('\x1b[33m$ Running code...\x1b[0m');
-    (window as any).writeToTerminal('');
-  }
-
-  try {
-    const response = await fetch('/api/execute', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ code }),
-    });
-
-    const result = await response.json();
+    lastHintCodeRef.current = code;
+    console.log('[RUN] Updated lastHintCodeRef to current code (length =', code.length, ')');
 
     if (typeof window !== 'undefined' && (window as any).writeToTerminal) {
-      if (result.success) {
-        (window as any).writeToTerminal('\x1b[32m✓ Execution completed\x1b[0m');
-        (window as any).writeToTerminal('');
-        (window as any).writeToTerminal('\x1b[36mOutput:\x1b[0m');
-        (window as any).writeToTerminal('');
-        result.stdout.split('\n').forEach((line: string) => {
-          (window as any).writeToTerminal(line);
-        });
-        if (result.stderr) {
+      (window as any).writeToTerminal('\x1b[33m$ Running code...\x1b[0m');
+      (window as any).writeToTerminal('');
+    }
+
+    try {
+      const response = await fetch('/api/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      });
+
+      const result = await response.json();
+
+      if (typeof window !== 'undefined' && (window as any).writeToTerminal) {
+        if (result.success) {
+          (window as any).writeToTerminal('\x1b[32m✓ Execution completed\x1b[0m');
           (window as any).writeToTerminal('');
-          (window as any).writeToTerminal('\x1b[31mErrors:\x1b[0m');
-          result.stderr.split('\n').forEach((line: string) => {
-            (window as any).writeToTerminal(line, true);
+          (window as any).writeToTerminal('\x1b[36mOutput:\x1b[0m');
+          (window as any).writeToTerminal('');
+          result.stdout.split('\n').forEach((line: string) => {
+            (window as any).writeToTerminal(line);
           });
+          if (result.stderr) {
+            (window as any).writeToTerminal('');
+            (window as any).writeToTerminal('\x1b[31mErrors:\x1b[0m');
+            result.stderr.split('\n').forEach((line: string) => {
+              (window as any).writeToTerminal(line, true);
+            });
+          }
+        } else {
+          (window as any).writeToTerminal('\x1b[31m✗ Execution failed\x1b[0m', true);
+          (window as any).writeToTerminal(result.error || 'Unknown error', true);
         }
-      } else {
-        (window as any).writeToTerminal('\x1b[31m✗ Execution failed\x1b[0m', true);
-        (window as any).writeToTerminal(result.error || 'Unknown error', true);
+        (window as any).writeToTerminal('');
       }
-      (window as any).writeToTerminal('');
-    }
 
-    if (result.success) {
-      await evaluateCode(code, result.stdout || result.stderr || '');
+      if (result.success) {
+        await evaluateCode(code, result.stdout || result.stderr || '');
+      }
+    } catch (error) {
+      console.error('Error executing code:', error);
+      if (typeof window !== 'undefined' && (window as any).writeToTerminal) {
+        (window as any).writeToTerminal('\x1b[31m✗ Failed to connect to server\x1b[0m', true);
+        (window as any).writeToTerminal('');
+      }
     }
-  } catch (error) {
-    console.error('Error executing code:', error);
-    if (typeof window !== 'undefined' && (window as any).writeToTerminal) {
-      (window as any).writeToTerminal('\x1b[31m✗ Failed to connect to server\x1b[0m', true);
-      (window as any).writeToTerminal('');
-    }
-  }
-};
+  };
 
   const sendIdleHint = async () => {
     if (!interviewState) {
@@ -360,20 +251,21 @@ export default function InterviewPage() {
         body: JSON.stringify({
           prompt: `We are working on the following coding interview problem:\n\n${liveText}\n\nHere is my current code attempt:\n\`\`\`python\n${currentCode}\n\`\`\`\n\nBased ONLY on this problem and this code, give exactly one short interviewing-style hint (1–2 sentences) that helps me move forward on this SAME problem. Do not introduce a new problem. Do not restate the entire problem. Do not give a full solution. Make sure your entire reply MUST be a hint, nothing else.`,
           difficulty: interviewState.difficulty || 'easy',
+          enableTTS: voiceEnabled,
         }),
       });
       const data = await response.json();
       console.log("[HINT] Hint data: ", data);
       lastHintCodeRef.current = currentCode;
-      const hintMessage = data.messageToUser || '';
       setLiveText((prev) =>
         prev
-          ? `${prev}\n\nHint: ${hintMessage}`
-          : hintMessage
+          ? `${prev}\n\nHint: ${data.messageToUser || ''}`
+          : data.messageToUser || ''
       );
-      // Generate TTS for hint
-      if (hintMessage) {
-        await generateTTS(hintMessage);
+      
+      // Set audio for TTS playback
+      if (data.audioBase64) {
+        setAudioBase64(data.audioBase64);
       }
     } catch (error) {
       console.error('Failed to fetch hint:', error);
@@ -381,15 +273,16 @@ export default function InterviewPage() {
   };
 
   useEffect(() => {
-
     console.log("🔥 [IDLE] effect fired");
     console.log("   currentCode length:", currentCode.length);
     console.log("   lastHintCode length:", lastHintCodeRef.current.length);
     console.log("   equal?:", currentCode === lastHintCodeRef.current);
+    
     if (!interviewState){
       console.log("[IDLE] no interview state");
       return;
     }
+    
     if (idleTimeoutRef.current) {
       console.log("[IDLE] clearing previous timer");
       clearTimeout(idleTimeoutRef.current);
@@ -405,14 +298,25 @@ export default function InterviewPage() {
       sendIdleHint();
     }, 20000);
 
-    // Cleanup on unmount or when dependencies change
     return () => {
       if (idleTimeoutRef.current) {
         console.log("[IDLE] Cleanup — clearing timeout.");
         clearTimeout(idleTimeoutRef.current);
       }
     };
-  }, [currentCode, interviewState]);
+  }, [currentCode, interviewState, voiceEnabled]);
+
+  const handleVoiceTranscript = (text: string, isFinal: boolean) => {
+    if (isFinal) {
+      console.log('[VOICE] Final transcript:', text);
+      setLiveText((prev) => prev ? `${prev}\n\nYou said: ${text}` : `You said: ${text}`);
+      
+      // You can also send this to the backend for processing
+      // For now, just logging it
+    } else {
+      console.log('[VOICE] Interim transcript:', text);
+    }
+  };
 
   return (
     <div className="h-screen bg-black text-white flex flex-col overflow-hidden crt-screen">
@@ -433,8 +337,6 @@ export default function InterviewPage() {
         <ProblemPanel 
           isCollapsed={isProblemPanelCollapsed}
           onToggle={() => setIsProblemPanelCollapsed(!isProblemPanelCollapsed)}
-          interviewState={interviewState}
-          problemText={liveText}
         />
 
         {/* Middle Section - IDE & Terminal */}
@@ -456,17 +358,17 @@ export default function InterviewPage() {
         {/* Right Section - Video & Captions */}
         <div className="w-96 flex flex-col overflow-hidden">
           <InterviewerVideo />
-          <LiveTranscription text={liveText} />
           
           {/* Voice Interaction Controls */}
-          <div className="p-3 bg-black border-b-2 border-green-400/30">
+          <div className="p-2 bg-black border-l-2 border-b-2 border-green-400/30">
             <VoiceInteraction 
               onTranscript={handleVoiceTranscript}
               audioBase64={audioBase64}
-              enabled={true}
+              enabled={voiceEnabled}
             />
           </div>
           
+          <LiveTranscription text={liveText} />
           <UserCamera />
         </div>
       </div>

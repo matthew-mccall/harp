@@ -28,7 +28,7 @@ export default function Index() {
             textTransform: 'uppercase',
             letterSpacing: '0.1em'
           }}>
-            HARP_INTERVIEW.EXE
+            HARP_INT.EXE
           </h1>
           <div className="text-sm retro-text mb-2">[ ARTIFICIAL INTELLIGENCE RECRUITMENT PROTOCOL ]</div>
         </div>
