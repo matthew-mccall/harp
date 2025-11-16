@@ -70,7 +70,7 @@ const hadFace = new Map<string, boolean>();
 
 // --- WebRTC receiver endpoint delegated to wrtc-video-sink ---
 app.post('/webrtc/offer', createWebRtcOfferHandler({
-  throttleMs: 200,
+  throttleMs: 5000,
   onTrackStart: ({ track }) => {
     const id = (track as any).id ?? String(track);
     hadFace.set(id, false);
