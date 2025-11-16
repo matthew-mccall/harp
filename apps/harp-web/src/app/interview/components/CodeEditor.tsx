@@ -5,9 +5,10 @@ import Editor from '@monaco-editor/react';
 
 interface CodeEditorProps {
   onRunCode?: (code: string) => void | Promise<void>;
+  onCodeChange?: (code: string) => void;
 }
 
-export default function CodeEditor({ onRunCode }: CodeEditorProps) {
+export default function CodeEditor({ onRunCode, onCodeChange }: CodeEditorProps) {
   const [code, setCode] = useState(`def two_sum(nums, target):
     # Your code here
     pass`);
@@ -68,7 +69,14 @@ export default function CodeEditor({ onRunCode }: CodeEditorProps) {
             </div>
             <textarea
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => {
+                const newCode = e.target.value;
+                setCode(newCode);
+                if (onCodeChange) {
+                  console.log('[CodeEditor] onCodeChange (whiteboard), length =', newCode.length);
+                  onCodeChange(newCode);
+                }
+              }}
               className="flex-1 font-mono text-sm bg-[#1e1e1e] overflow-auto leading-relaxed resize-none focus:outline-none px-4 py-4 text-gray-200"
               style={{ 
                 tabSize: 4,
@@ -82,7 +90,14 @@ export default function CodeEditor({ onRunCode }: CodeEditorProps) {
             height="100%"
             defaultLanguage="python"
             value={code}
-            onChange={(value) => setCode(value || '')}
+            onChange={(value) => {
+              const newCode = value || '';
+              setCode(newCode);
+              if (onCodeChange) {
+                console.log('[CodeEditor] onCodeChange (IDE), length =', newCode.length);
+                onCodeChange(newCode);
+              }
+            }}
             onMount={handleEditorDidMount}
             theme="vs-dark"
             options={{
