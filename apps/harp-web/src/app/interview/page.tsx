@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
+import { io } from 'socket.io-client';
 import dynamic from 'next/dynamic';
 import Navbar from './components/Navbar';
 import CodeEditor from './components/CodeEditor';
@@ -57,6 +58,70 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
     }
   }, []);
 
+  // Connect to harp-emotion via Socket.IO and keep currentEmotion updated
+  useEffect(() => {
+    // Only run in the browser
+    if (typeof window === 'undefined') return;
+
+    // Allow override via env; default to local harp-emotion server
+    const url = process.env.NEXT_PUBLIC_EMOTION_SOCKET_URL || 'http://localhost:3001';
+
+    try {
+      const socket = io(url, {
+        transports: ['websocket', 'polling'],
+        autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 500,
+        reconnectionDelayMax: 5000,
+        timeout: 10000,
+      });
+
+      socket.on('connect', () => {
+        console.log(`[EMO] Connected to harp-emotion at ${url} (id=${socket.id})`);
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log('[EMO] Disconnected from harp-emotion:', reason);
+      });
+
+      socket.on('connect_error', (err) => {
+        console.warn('[EMO] Connection error:', (err as any)?.message || err);
+      });
+
+      // Payload shape comes from apps/harp-emotion/src/main.ts
+      socket.on('emotion', (payload: any) => {
+        try {
+          const dom = payload?.dominantEmotion as { emotion?: EmotionName; probability?: number } | undefined;
+          if (!dom || !dom.emotion) return;
+
+          setCurrentEmotion({
+            emotion: dom.emotion as EmotionName,
+            probability: typeof dom.probability === 'number' ? dom.probability : 0,
+          });
+
+          // Debug: brief log
+          if (dom) {
+            console.log(`[EMO] ${dom.emotion} ${(Math.max(0, Math.min(1, dom.probability ?? 0)) * 100).toFixed(1)}%`);
+          }
+        } catch (e) {
+          console.warn('[EMO] Failed to handle emotion payload:', (e as any)?.message || e);
+        }
+      });
+
+      return () => {
+        try {
+          socket.removeAllListeners();
+          socket.disconnect();
+        } catch {
+          // ignore
+        }
+      };
+    } catch (e) {
+      console.warn('[EMO] Socket initialization failed:', (e as any)?.message || e);
+    }
+  }, []);
+
   // Generate TTS from text
   const generateTTS = async (text: string) => {
     // Avoid duplicate TTS requests for the same text
@@ -64,15 +129,15 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
       console.log('[TTS] Skipping duplicate request for same text');
       return;
     }
-    
+
     ttsQueueRef.current = text;
-    
+
     try {
       console.log('[TTS] Generating speech for:', text.substring(0, 50) + '...');
-      
+
       // Clear previous audio before generating new one
       setAudioBase64(undefined);
-      
+
       const response = await fetch('http://localhost:4000/api/tts', {
         method: 'POST',
         headers: {
@@ -82,7 +147,7 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
       });
 
       const data = await response.json();
-      
+
       if (data.success && data.audioBase64) {
         console.log('[TTS] Audio generated successfully');
         setAudioBase64(data.audioBase64);
@@ -97,24 +162,24 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
   // Handle voice transcription
   const handleVoiceTranscript = async (text: string, isFinal: boolean) => {
     console.log('[VOICE] Transcript:', text, 'Final:', isFinal);
-    
+
     if (!isFinal) {
       // Just show interim results, don't process yet
       return;
     }
-    
+
     // Ignore empty transcripts (happens when stopping recording)
     const trimmedText = text.trim();
     if (!trimmedText) {
       console.log('[VOICE] Empty transcript, ignoring');
       return;
     }
-    
+
     // Add user's speech to transcript
-    setLiveText((prev) => 
+    setLiveText((prev) =>
       prev ? `${prev}\n\nYou: ${trimmedText}` : `You: ${trimmedText}`
     );
-    
+
     // Process the voice command asynchronously without blocking
     // This prevents the mic from getting stuck
     setTimeout(async () => {
@@ -125,13 +190,13 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
         await sendIdleHint();
         return;
       }
-      
+
       // Otherwise, send as a general message to the interviewer
       if (!interviewState) {
         console.log('[VOICE] No interview state yet, skipping');
         return;
       }
-      
+
       try {
         console.log('[VOICE] Sending user message to interviewer');
         const response = await fetch('http://localhost:4000/api/hint', {
@@ -144,14 +209,14 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
             difficulty: interviewState.difficulty || 'easy',
           }),
         });
-        
+
         const data = await response.json();
         const responseMessage = data.messageToUser || '';
-        
+
         setLiveText((prev) =>
           prev ? `${prev}\n\nInterviewer: ${responseMessage}` : responseMessage
         );
-        
+
         // Generate TTS for the response
         if (responseMessage) {
           await generateTTS(responseMessage);
@@ -280,9 +345,9 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
         console.log('[INTERVIEW] Already started, skipping duplicate call');
         return;
       }
-      
+
       interviewStartedRef.current = true;
-      
+
       console.log("STARTING INTERVIEW....");
       try {
         let diff: 'easy' | 'medium' | 'hard' = 'easy';
@@ -328,10 +393,12 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
   //       emotion: 'Angry',
   //       probability: 0.7,
   //     });
-  //   }, 30000); // 30 seconds  
+  //   }, 30000); // 30 seconds
 
   //   return () => clearTimeout(timer);
   // }, []);
+
+
 
 
   // EMOTION → HINT TRIGGER
@@ -582,7 +649,7 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
         }} />
 
         {/* Problem Panel - Collapsible */}
-        <ProblemPanel 
+        <ProblemPanel
           isCollapsed={isProblemPanelCollapsed}
           onToggle={() => setIsProblemPanelCollapsed(!isProblemPanelCollapsed)}
           interviewState={interviewState}
@@ -592,14 +659,14 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
         {/* Middle Section - IDE & Terminal */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <CodeEditor onRunCode={handleRunCode} onCodeChange={setCurrentCode} />
-          
+
           {/* Terminal Resize Handle */}
           <ResizeHandle
             orientation="horizontal"
             onMouseDown={() => setIsDraggingTerminal(true)}
             isDragging={isDraggingTerminal}
           />
-          
+
           <div style={{ height: `${terminalHeight}px` }}>
             <Terminal />
           </div>
@@ -609,16 +676,16 @@ const lastEmotionHintAtRef = useRef<number | null>(null);
         <div className="w-96 flex flex-col overflow-hidden">
           <InterviewerVideo />
           <LiveTranscription text={liveText} />
-          
+
           {/* Voice Interaction Controls */}
           <div className="p-3 bg-black border-b-2 border-green-400/30">
-            <VoiceInteraction 
+            <VoiceInteraction
               onTranscript={handleVoiceTranscript}
               audioBase64={audioBase64}
               enabled={true}
             />
           </div>
-          
+
           <UserCamera />
         </div>
       </div>

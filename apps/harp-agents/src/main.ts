@@ -15,17 +15,26 @@ import {
   GRADIENT_AGENT_CHAT_URL,
   GRADIENT_AGENT_AK,
   TOOLS_FUNCTION_URL,
+  HARP_EMOTION_URL,
 } from './env';
 
 import express from 'express';
 import cors from 'cors';
 import { textToSpeech, getVoices } from './tts-service';
+import { initEmotionSocket } from './emotion-client';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // Environment handled in ./env; required vars guaranteed at import time
+// Initialize Socket.IO client to harp-emotion
+try {
+  initEmotionSocket(HARP_EMOTION_URL);
+} catch (e) {
+  // eslint-disable-next-line no-console
+  console.warn('[emotion] failed to initialize socket:', (e as any)?.message || e);
+}
 
 // Types
 type Difficulty = 'easy' | 'medium' | 'hard';
