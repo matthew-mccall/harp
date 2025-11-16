@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Terminal as XTerm } from 'xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import 'xterm/css/xterm.css';
 
 interface TerminalProps {
   onClear?: () => void;
@@ -21,13 +24,12 @@ export default function Terminal({ onClear }: TerminalProps) {
 
     let mounted = true;
 
-    const initTerminal = async () => {
+    const initTerminal = () => {
       try {
-        // Dynamic import to avoid SSR issues
-        const { Terminal: XTerm } = await import('xterm');
-        const { FitAddon } = await import('@xterm/addon-fit');
-
-        if (!mounted || !terminalRef.current) return undefined;
+        if (!mounted || !terminalRef.current) {
+          // Return a no-op cleanup to keep return type consistent
+          return () => {};
+        }
 
         const term = new XTerm({
           cursorBlink: false,
@@ -112,14 +114,13 @@ export default function Terminal({ onClear }: TerminalProps) {
         };
       } catch (error) {
         console.error('Failed to initialize terminal:', error);
+        // Return a no-op cleanup on failure
+        return () => {};
       }
     };
 
-    initTerminal();
-
-    return () => {
-      mounted = false;
-    };
+    const cleanup = initTerminal();
+    return cleanup;
   }, [isClient]);
 
   // Expose method to write to terminal from parent
@@ -171,7 +172,7 @@ export default function Terminal({ onClear }: TerminalProps) {
       <div className="bg-gradient-to-r from-white/5 to-transparent border-b border-white/10 px-4 py-2.5 flex items-center gap-2 backdrop-blur-sm">
         <span className="text-sm text-white font-medium tracking-wide">Terminal</span>
         <div className="flex-1"></div>
-        <button 
+        <button
           onClick={handleClear}
           className="text-white hover:bg-gradient-to-br hover:from-white hover:to-gray-100 hover:text-black transition-all duration-300 text-xs border border-white/40 hover:border-white px-4 py-1.5 rounded-lg shadow-lg hover:shadow-white/20 bg-white/5"
         >
