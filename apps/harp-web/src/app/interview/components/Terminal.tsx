@@ -39,7 +39,7 @@ export default function Terminal({ onClear }: TerminalProps) {
             background: '#000000',
             foreground: '#e5e5e5',
             cursor: '#ffffff',
-            black: '#000000',
+            black: '#aaaaaa',
             red: '#ff6b6b',
             green: '#51cf66',
             yellow: '#ffd43b',
