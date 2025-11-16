@@ -142,7 +142,11 @@ export default function UserCamera() {
   }, [stream]);
 
   return (
-    <div className="flex-1 bg-gradient-to-br from-black via-gray-950 to-black border-l border-white/10 overflow-hidden relative shadow-2xl shadow-white/5">
+    <div className="flex-1 bg-gradient-to-br from-black via-gray-950 to-black overflow-hidden relative group">
+      {/* Dynamic corner indicators */}
+      <div className="absolute top-0 right-0 w-12 h-12 border-r border-t border-white/20 transition-all group-hover:border-white/40" />
+      <div className="absolute bottom-0 left-0 w-12 h-12 border-l border-b border-white/20 transition-all group-hover:border-white/40" />
+      
       <video
         ref={videoRef}
         autoPlay
@@ -154,9 +158,11 @@ export default function UserCamera() {
       {!isCameraOn && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-3 rounded-full border-2 border-white/20 bg-gradient-to-br from-white/5 to-transparent flex items-center justify-center shadow-inner">
+            {/* Icon without border box */}
+            <div className="relative w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-full blur-sm" />
               <svg
-                className="w-8 h-8 text-white/50"
+                className="w-10 h-10 text-white/50 relative z-10"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -176,15 +182,19 @@ export default function UserCamera() {
         </div>
       )}
 
-      <div className="absolute bottom-4 left-4 flex gap-2 z-10">
-        <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/30 px-3 py-1.5 rounded-lg text-xs shadow-lg">
+      {/* Floating controls without boxes */}
+      <div className="absolute bottom-4 left-4 flex gap-4 z-10 items-center">
+        <span className="text-xs font-medium tracking-widest uppercase text-white/60">
           You
-        </div>
+        </span>
         <button
           onClick={isCameraOn ? stopCamera : startCamera}
-          className="bg-gradient-to-br from-white/10 to-white/5 hover:from-white hover:to-gray-100 hover:text-black backdrop-blur-md border border-white/30 hover:border-white px-4 py-1.5 rounded-lg text-xs transition-all duration-300 shadow-lg hover:shadow-white/20"
+          className="relative group/btn px-4 py-2 text-xs transition-all duration-300 hover:scale-105"
         >
-          {isCameraOn ? '📹 On' : '📹 Off'}
+          <span className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-full blur-sm group-hover/btn:blur-md group-hover/btn:bg-white/20 transition-all" />
+          <span className="relative flex items-center gap-1.5">
+            {isCameraOn ? '📹 On' : '📹 Off'}
+          </span>
         </button>
       </div>
     </div>

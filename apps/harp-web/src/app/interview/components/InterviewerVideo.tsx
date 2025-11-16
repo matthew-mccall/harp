@@ -61,11 +61,18 @@ function Scene() {
 
 export default function InterviewerVideo() {
   return (
-    <div className="h-64 bg-gradient-to-br from-black via-gray-950 to-black border-l border-b border-white/10 overflow-hidden relative shadow-2xl shadow-white/5">
+    <div className="h-64 bg-gradient-to-br from-black via-gray-950 to-black overflow-hidden relative group">
+      {/* Animated corner accents */}
+      <div className="absolute top-0 left-0 w-16 h-16 border-l border-t border-white/20 transition-all group-hover:w-20 group-hover:h-20 group-hover:border-white/40" />
+      <div className="absolute bottom-0 right-0 w-16 h-16 border-r border-b border-white/20 transition-all group-hover:w-20 group-hover:h-20 group-hover:border-white/40" />
+      
       <Canvas>
         <Scene />
       </Canvas>
-      <div className="absolute top-4 left-4 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/30 px-3 py-1.5 rounded-lg text-xs shadow-lg">
+      
+      {/* Floating label without box */}
+      <div className="absolute top-4 left-4 text-xs font-medium tracking-widest uppercase text-white/60 flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-gradient-to-r from-white/50 to-transparent" />
         AI Interviewer
       </div>
     </div>
