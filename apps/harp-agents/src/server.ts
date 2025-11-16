@@ -272,6 +272,87 @@ app.post('/api/answer', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/hint
+ * body: { prompt: string, difficulty?: string }
+ *
+ * This bypasses the orchestrator and directly asks Gemini (via tools_function)
+ * for a short, single-problem hint using agent_mode = "hint".
+ */
+app.post('/api/hint', async (req, res) => {
+  try {
+    const { prompt = '', difficulty = 'easy' } = req.body || {};
+
+    const toolArgs = {
+      tool: 'gemini_chat',
+      agent_mode: 'hint',
+      prompt,
+      extra: {
+        difficulty,
+      },
+    };
+
+    const toolResult = await callToolsFunction(toolArgs);
+
+    const messageToUser =
+      toolResult.answer ||
+      toolResult.text ||
+      toolResult.body?.answer ||
+      toolResult.body?.text ||
+      JSON.stringify(toolResult);
+
+    res.json({
+      messageToUser,
+      rawToolResult: toolResult,
+    });
+  } catch (err: any) {
+    console.error('Error in /api/hint:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Failed to generate hint' });
+  }
+});
+
+/**
+ * POST /api/evaluate
+ * body: { prompt: string, difficulty?: string }
+ *
+ * This bypasses the orchestrator and directly asks Gemini (via tools_function)
+ * for a solution evaluation using agent_mode = "evaluator".
+ */
+app.post('/api/evaluate', async (req, res) => {
+  console.log('[API/EVALUATE] Incoming request body:', req.body);
+  try {
+    const { prompt = '', difficulty = 'easy' } = req.body || {};
+
+    const toolArgs = {
+      tool: 'gemini_chat',
+      agent_mode: 'evaluator',
+      prompt,
+      extra: {
+        difficulty,
+      },
+    };
+    console.log('[API/EVALUATE] toolArgs:', toolArgs);
+
+    const toolResult = await callToolsFunction(toolArgs);
+    console.log('[API/EVALUATE] raw toolResult:', toolResult);
+
+    const messageToUser =
+      toolResult.answer ||
+      toolResult.text ||
+      toolResult.body?.answer ||
+      toolResult.body?.text ||
+      JSON.stringify(toolResult);
+
+    res.json({
+      messageToUser,
+      rawToolResult: toolResult,
+    });
+  } catch (err: any) {
+    console.error('[API/EVALUATE] Error:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Failed to evaluate solution' });
+  }
+});
+
 app.get('/', (_req, res) => {
   res.send('Mock interview backend is running');
 });

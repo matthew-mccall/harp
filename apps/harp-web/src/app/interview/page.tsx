@@ -43,23 +43,19 @@ export default function InterviewPage() {
     console.log('[EVAL] Evaluating code with stdout length:', stdout.length);
 
     try {
-      const response = await fetch('http://localhost:4000/api/answer', {
+      const response = await fetch('http://localhost:4000/api/evaluate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userMessage: `The candidate has just run their solution code for the current interview question.\n\nHere is the current interview context (question + hints):\n${liveText}\n\nHere is the candidate's code:\n\`\`\`python\n${code}\n\`\`\`\n\nHere is the program output when run:\n\`\`\`\n${stdout}\n\`\`\`\n\nEvaluate whether this solution correctly solves the interview problem. Respond with: (1) a verdict ("correct" or "incorrect"), and (2) one or two sentences of feedback. Be concise. Do NOT introduce a new problem or ask a different question.`,
-          phase: 'evaluating',
-          agent_mode: 'evaluator',
-          difficulty: interviewState.difficulty || 'easy',
-          history: interviewState.history || [],
+          prompt: `The candidate has just run their solution code for the current interview question.\n\nHere is the current interview context (question + hints):\n${liveText}\n\nHere is the candidate's code:\n\`\`\`python\n${code}\n\`\`\`\n\nHere is the program output when run:\n\`\`\`\n${stdout}\n\`\`\`\n\nEvaluate whether this solution correctly solves the interview problem. Respond with: (1) a verdict ("correct" or "incorrect"), and (2) one or two sentences of feedback. Be concise. Do NOT introduce a new problem or ask a different question.`,
+          difficulty: interviewState?.difficulty || 'easy',
         }),
       });
 
       const data = await response.json();
       console.log('[EVAL] Evaluation response:', data);
-      setInterviewState(data.state);
       setLiveText((prev) =>
         prev
           ? `${prev}\n\nEvaluation: ${data.messageToUser || ''}`
@@ -137,60 +133,61 @@ export default function InterviewPage() {
   }, [isDraggingTerminal, isDraggingPanel]);
 
   const handleRunCode = async (code: string) => {
-    
-    // Write to terminal that code is running
+  // 1) First call our interview evaluator (no stdout yet)
+  await evaluateCode(code, '');
+
+  // 2) Then run the code in the terminal as before
+  if (typeof window !== 'undefined' && (window as any).writeToTerminal) {
+    (window as any).writeToTerminal('\x1b[33m$ Running code...\x1b[0m');
+    (window as any).writeToTerminal('');
+  }
+
+  try {
+    const response = await fetch('/api/execute', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ code }),
+    });
+
+    const result = await response.json();
+
     if (typeof window !== 'undefined' && (window as any).writeToTerminal) {
-      (window as any).writeToTerminal('\x1b[33m$ Running code...\x1b[0m');
+      if (result.success) {
+        (window as any).writeToTerminal('\x1b[32m✓ Execution completed\x1b[0m');
+        (window as any).writeToTerminal('');
+        (window as any).writeToTerminal('\x1b[36mOutput:\x1b[0m');
+        (window as any).writeToTerminal('');
+        result.stdout.split('\n').forEach((line: string) => {
+          (window as any).writeToTerminal(line);
+        });
+        if (result.stderr) {
+          (window as any).writeToTerminal('');
+          (window as any).writeToTerminal('\x1b[31mErrors:\x1b[0m');
+          result.stderr.split('\n').forEach((line: string) => {
+            (window as any).writeToTerminal(line, true);
+          });
+        }
+      } else {
+        (window as any).writeToTerminal('\x1b[31m✗ Execution failed\x1b[0m', true);
+        (window as any).writeToTerminal(result.error || 'Unknown error', true);
+      }
       (window as any).writeToTerminal('');
     }
 
-    try {
-      // Send code to your backend API
-      const response = await fetch('/api/execute', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code }),
-      });
-
-      const result = await response.json();
-
-      // Display results in terminal
-      if (typeof window !== 'undefined' && (window as any).writeToTerminal) {
-        if (result.success) {
-          (window as any).writeToTerminal('\x1b[32m✓ Execution completed\x1b[0m');
-          (window as any).writeToTerminal('');
-          (window as any).writeToTerminal('\x1b[36mOutput:\x1b[0m');
-          result.stdout.split('\n').forEach((line: string) => {
-            (window as any).writeToTerminal(line);
-          });
-          if (result.stderr) {
-            (window as any).writeToTerminal('');
-            (window as any).writeToTerminal('\x1b[31mErrors:\x1b[0m');
-            result.stderr.split('\n').forEach((line: string) => {
-              (window as any).writeToTerminal(line, true);
-            });
-          }
-        } else {
-          (window as any).writeToTerminal('\x1b[31m✗ Execution failed\x1b[0m', true);
-          (window as any).writeToTerminal(result.error || 'Unknown error', true);
-        }
-        (window as any).writeToTerminal('');
-      }
-
-      // After showing the output, ask the interview backend to evaluate correctness
-      if (result.success) {
-        await evaluateCode(code, result.stdout || '');
-      }
-    } catch (error) {
-      console.error('Error executing code:', error);
-      if (typeof window !== 'undefined' && (window as any).writeToTerminal) {
-        (window as any).writeToTerminal('\x1b[31m✗ Failed to connect to server\x1b[0m', true);
-        (window as any).writeToTerminal('');
-      }
+    // (Optional) if later you want a second evaluation using stdout, you can call:
+    // if (result.success) {
+    //   await evaluateCode(code, result.stdout || '');
+    // }
+  } catch (error) {
+    console.error('Error executing code:', error);
+    if (typeof window !== 'undefined' && (window as any).writeToTerminal) {
+      (window as any).writeToTerminal('\x1b[31m✗ Failed to connect to server\x1b[0m', true);
+      (window as any).writeToTerminal('');
     }
-  };
+  }
+};
 
   const sendIdleHint = async () => {
     if (!interviewState) {
@@ -199,23 +196,19 @@ export default function InterviewPage() {
     }
     console.log("[HINT] Sending idle hint with code:", currentCode);
     try {
-      const response = await fetch('http://localhost:4000/api/answer', {
+      const response = await fetch('http://localhost:4000/api/hint', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userMessage: `Here is my current code:\n\`\`\`python\n${currentCode}\n\`\`\`\n\nWe are in the middle of a single coding interview problem that has already been asked. Do NOT introduce a new problem or new question. Do NOT restate the entire problem. Do NOT give a full solution. Give exactly one short, interviewing-style hint (1–2 sentences) that helps me move forward on THIS same problem only.`,
-          phase: interviewState.phase || 'interviewing',
-          agent_mode: "hint",
+          prompt: `We are working on the following coding interview problem:\n\n${liveText}\n\nHere is my current code attempt:\n\`\`\`python\n${currentCode}\n\`\`\`\n\nBased ONLY on this problem and this code, give exactly one short interviewing-style hint (1–2 sentences) that helps me move forward on this SAME problem. Do not introduce a new problem. Do not restate the entire problem. Do not give a full solution. Make sure your entire reply MUST be a hint, nothing else.`,
           difficulty: interviewState.difficulty || 'easy',
-          history: interviewState.history || [],
         }),
       });
       const data = await response.json();
       console.log("[HINT] Hint data: ", data);
       lastHintCodeRef.current = currentCode;
-      setInterviewState(data.state);
       setLiveText((prev) =>
         prev
           ? `${prev}\n\nHint: ${data.messageToUser || ''}`
@@ -241,13 +234,11 @@ export default function InterviewPage() {
       clearTimeout(idleTimeoutRef.current);
     }
 
-    // If the code hasn't changed since the last hint, do not schedule another
     if (currentCode === lastHintCodeRef.current) {
       console.log("[IDLE] Code unchanged since last hint — not scheduling new timer.");
       return;
     }
 
-    // Start a new 20s idle timer
     idleTimeoutRef.current = setTimeout(() => {
       console.log("[IDLE] 20s idle reached → sending hint.");
       sendIdleHint();
