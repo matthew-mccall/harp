@@ -1,8 +1,11 @@
 import Link from 'next/link';
+import EnterToStart from './interview/components/EntertoStart';
 
 export default function Index() {
+  
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-black relative overflow-hidden crt-screen">
+      <EnterToStart />  {/* ← Add this */}
       {/* Retro grid background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
         <div className="absolute inset-0" style={{
@@ -51,14 +54,19 @@ export default function Index() {
         </div>
         
         {/* Retro-modern button */}
-        <Link 
-          href="/interview" 
+        <Link
+          href="/interview"
           className="group relative inline-block mb-12"
         >
-          <div className="relative bg-black border-4 border-green-400 px-12 py-4 transition-all duration-200 hover:border-cyan-400 hover:translate-x-1 hover:-translate-y-1" style={{
-            boxShadow: '6px 6px 0px rgba(0, 255, 0, 0.5)',
-            clipPath: 'polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px))'
-          }}>
+          <div
+            tabIndex={0}
+            role="button"
+            className="relative bg-black border-4 border-green-400 px-12 py-4 transition-all duration-200 hover:border-cyan-400 hover:translate-x-1 hover:-translate-y-1"
+            style={{
+              boxShadow: '6px 6px 0px rgba(0, 255, 0, 0.5)',
+              clipPath: 'polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px))'
+            }}
+          >
             <span className="retro-text text-xl tracking-widest font-bold block">
               [ INITIALIZE ]
             </span>
