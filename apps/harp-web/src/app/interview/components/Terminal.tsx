@@ -87,9 +87,25 @@ export default function Terminal({ onClear }: TerminalProps) {
 
         window.addEventListener('resize', handleResize);
 
+        // Watch for container size changes (for resize handles)
+        const resizeObserver = new ResizeObserver(() => {
+          if (mounted && fitAddonRef.current) {
+            try {
+              fitAddonRef.current.fit();
+            } catch (e) {
+              // Ignore resize errors
+            }
+          }
+        });
+
+        if (terminalRef.current) {
+          resizeObserver.observe(terminalRef.current);
+        }
+
         return () => {
           mounted = false;
           window.removeEventListener('resize', handleResize);
+          resizeObserver.disconnect();
           if (term) {
             term.dispose();
           }
