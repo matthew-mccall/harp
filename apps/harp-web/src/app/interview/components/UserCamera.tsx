@@ -142,10 +142,10 @@ export default function UserCamera() {
   }, [stream]);
 
   return (
-    <div className="flex-1 bg-gradient-to-br from-black via-gray-950 to-black overflow-hidden relative group">
-      {/* Dynamic corner indicators */}
-      <div className="absolute top-0 right-0 w-12 h-12 border-r border-t border-white/20 transition-all group-hover:border-white/40" />
-      <div className="absolute bottom-0 left-0 w-12 h-12 border-l border-b border-white/20 transition-all group-hover:border-white/40" />
+    <div className="flex-1 bg-black overflow-hidden relative border-l-2 border-green-400/30 crt-screen" style={{ boxShadow: '0 0 20px rgba(0, 255, 0, 0.1)' }}>
+      {/* Retro corner indicators */}
+      <div className="absolute top-0 right-0 w-12 h-12 border-r-2 border-t-2 border-green-400/50" />
+      <div className="absolute bottom-0 left-0 w-12 h-12 border-l-2 border-b-2 border-green-400/50" />
       
       <video
         ref={videoRef}
@@ -158,11 +158,10 @@ export default function UserCamera() {
       {!isCameraOn && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            {/* Icon without border box */}
-            <div className="relative w-16 h-16 mx-auto mb-3 flex items-center justify-center">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-full blur-sm" />
+            {/* Retro icon */}
+            <div className="relative w-16 h-16 mx-auto mb-3 flex items-center justify-center border-2 border-green-400/30 bg-black" style={{ clipPath: 'polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%)' }}>
               <svg
-                className="w-10 h-10 text-white/50 relative z-10"
+                className="w-8 h-8 text-green-400/70"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -175,26 +174,28 @@ export default function UserCamera() {
                 />
               </svg>
             </div>
-            <p className="text-xs text-gray-400 max-w-xs">
-              {error || 'Camera Off'}
+            <p className="text-xs text-green-400/60 font-mono max-w-xs">
+              {error || '&gt; CAMERA_OFFLINE'}
             </p>
           </div>
         </div>
       )}
 
-      {/* Floating controls without boxes */}
-      <div className="absolute bottom-4 left-4 flex gap-4 z-10 items-center">
-        <span className="text-xs font-medium tracking-widest uppercase text-white/60">
-          You
+      {/* Retro controls */}
+      <div className="absolute bottom-4 left-4 flex gap-3 z-10 items-center">
+        <span className="text-xs font-mono tracking-widest uppercase text-cyan-400 border-2 border-cyan-400/50 bg-black px-2 py-1">
+          [USER]
         </span>
         <button
           onClick={isCameraOn ? stopCamera : startCamera}
-          className="relative group/btn px-4 py-2 text-xs transition-all duration-300 hover:scale-105"
+          className={`px-4 py-1.5 text-xs font-mono font-bold tracking-wider transition-all border-2 ${
+            isCameraOn 
+              ? 'bg-green-400 text-black border-green-400' 
+              : 'bg-black text-green-400 border-green-400/50 hover:border-green-400'
+          }`}
+          style={isCameraOn ? { boxShadow: '0 0 15px rgba(0, 255, 0, 0.5)' } : {}}
         >
-          <span className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-full blur-sm group-hover/btn:blur-md group-hover/btn:bg-white/20 transition-all" />
-          <span className="relative flex items-center gap-1.5">
-            {isCameraOn ? '📹 On' : '📹 Off'}
-          </span>
+          {isCameraOn ? '[CAM:ON]' : '[CAM:OFF]'}
         </button>
       </div>
     </div>

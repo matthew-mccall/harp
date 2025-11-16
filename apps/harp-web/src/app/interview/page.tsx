@@ -14,8 +14,8 @@ import ProblemPanel from './components/ProblemPanel';
 const Terminal = dynamic(() => import('./components/Terminal'), {
   ssr: false,
   loading: () => (
-    <div className="h-40 bg-gradient-to-br from-black via-gray-950 to-black border-r border-white/10 flex items-center justify-center">
-      <span className="text-gray-400 text-sm">Loading terminal...</span>
+    <div className="h-40 bg-black border-r-2 border-green-400/30 flex items-center justify-center">
+      <span className="text-green-400 text-xs font-mono">&gt; LOADING_TERMINAL...</span>
     </div>
   ),
 });
@@ -282,14 +282,20 @@ export default function InterviewPage() {
   }, [currentCode, interviewState]);
 
   return (
-    <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
+    <div className="h-screen bg-black text-white flex flex-col overflow-hidden crt-screen">
       <Navbar />
 
       {/* Main Content */}
       <div
         ref={containerRef}
-        className="flex flex-1 overflow-hidden"
+        className="flex flex-1 overflow-hidden relative"
       >
+        {/* Retro grid overlay */}
+        <div className="absolute inset-0 pointer-events-none opacity-5" style={{
+          backgroundImage: 'linear-gradient(#00ff00 1px, transparent 1px), linear-gradient(90deg, #00ff00 1px, transparent 1px)',
+          backgroundSize: '20px 20px'
+        }} />
+
         {/* Problem Panel - Collapsible */}
         <ProblemPanel 
           isCollapsed={isProblemPanelCollapsed}

@@ -168,18 +168,18 @@ export default function Terminal({ onClear }: TerminalProps) {
   }
 
   return (
-    <div className="h-full bg-gradient-to-br from-black via-gray-950 to-black border-r border-white/10 overflow-hidden flex flex-col shadow-2xl shadow-white/5">
-      <div className="bg-gradient-to-r from-white/5 to-transparent border-b border-white/10 px-4 py-2.5 flex items-center gap-2 backdrop-blur-sm">
-        <span className="text-sm text-white font-medium tracking-wide">Terminal</span>
+    <div className="h-full bg-black border-r-2 border-b-2 border-green-400/30 overflow-hidden flex flex-col">
+      <div className="bg-black border-b-2 border-green-400/30 px-4 py-2 flex items-center gap-2 no-crt-lines" style={{ boxShadow: '0 0 15px rgba(0, 255, 0, 0.1)' }}>
+        <span className="text-green-400 font-mono text-xs">[TERMINAL]</span>
         <div className="flex-1"></div>
         <button
           onClick={handleClear}
-          className="text-white hover:bg-gradient-to-br hover:from-white hover:to-gray-100 hover:text-black transition-all duration-300 text-xs border border-white/40 hover:border-white px-4 py-1.5 rounded-lg shadow-lg hover:shadow-white/20 bg-white/5"
+          className="text-xs font-mono text-green-400 border-2 border-green-400/50 hover:border-green-400 hover:shadow-[0_0_10px_rgba(0,255,0,0.5)] px-3 py-1 transition-all duration-300"
         >
-          Clear
+          [CLEAR]
         </button>
       </div>
-      <div ref={terminalRef} className="flex-1 p-2 overflow-hidden" />
+      <div ref={terminalRef} className="flex-1 p-2 overflow-hidden no-crt-lines" />
     </div>
   );
 }

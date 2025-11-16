@@ -35,32 +35,37 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       className="fixed inset-0 z-50 flex items-center justify-center animate-fadeIn"
       onClick={onClose}
     >
-      {/* Backdrop with blur */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      {/* Backdrop with blur and CRT effect */}
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm crt-screen" />
 
-      {/* Settings Modal */}
+      {/* Retro Settings Modal */}
       <div
-        className="relative w-full max-w-2xl mx-4 bg-gradient-to-br from-gray-950 via-black to-gray-950 rounded-2xl shadow-2xl animate-scaleIn"
+        className="relative w-full max-w-2xl mx-4 bg-black border-4 border-green-400/50 animate-scaleIn"
+        style={{ 
+          boxShadow: '0 0 30px rgba(0, 255, 0, 0.3), inset 0 0 20px rgba(0, 255, 0, 0.1)',
+          clipPath: 'polygon(0 0, calc(100% - 30px) 0, 100% 30px, 100% 100%, 30px 100%, 0 calc(100% - 30px))'
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Decorative corner accents */}
-        <div className="absolute top-0 left-0 w-20 h-20 border-l-2 border-t-2 border-white/20 rounded-tl-2xl" />
-        <div className="absolute bottom-0 right-0 w-20 h-20 border-r-2 border-b-2 border-white/20 rounded-br-2xl" />
+        {/* Retro corner accents */}
+        <div className="absolute top-0 left-0 w-20 h-20 border-l-2 border-t-2 border-cyan-400/50" />
+        <div className="absolute bottom-0 right-0 w-20 h-20 border-r-2 border-b-2 border-cyan-400/50" />
 
         {/* Header */}
-        <div className="relative p-6 border-b border-white/10">
+        <div className="relative p-6 border-b-2 border-green-400/30 bg-black/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="w-2 h-2 rounded-full bg-gradient-to-r from-white/50 to-transparent" />
-              <h2 className="text-2xl font-bold text-white">Settings</h2>
+              <span className="w-2 h-2 bg-green-400 animate-pulse" style={{ boxShadow: '0 0 8px rgba(0, 255, 0, 0.8)' }} />
+              <h2 className="text-2xl font-bold font-mono text-green-400 tracking-wider" style={{ textShadow: '0 0 8px rgba(0, 255, 0, 0.6)' }}>
+                [SETTINGS.CFG]
+              </h2>
             </div>
             <button
               onClick={onClose}
-              className="group relative p-2 text-gray-400 hover:text-white transition-colors"
+              className="group relative p-2 text-cyan-400 hover:text-green-400 transition-colors border-2 border-cyan-400/50 hover:border-green-400"
             >
-              <span className="absolute inset-0 bg-white/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" />
               <svg
-                className="w-6 h-6 relative"
+                className="w-5 h-5 relative"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -81,11 +86,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           {/* Interview Settings Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-              <h3 className="text-xs font-medium text-white/60 tracking-widest uppercase">
-                Interview
+              <h3 className="text-xs font-mono text-cyan-400 tracking-widest uppercase">
+                &gt; INTERVIEW_CONFIG
               </h3>
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
             </div>
 
             <SettingItem
@@ -102,11 +105,11 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     window.localStorage.setItem('harp_interview_difficulty', value);
                   }
                 }}
-                className="bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/40 transition-colors [&>option]:bg-black [&>option]:text-white"
+                className="bg-black border-2 border-green-400/50 px-3 py-2 text-xs text-green-400 font-mono focus:outline-none focus:border-green-400 transition-colors [&>option]:bg-black [&>option]:text-green-400"
               >
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
+                <option value="easy">EASY</option>
+                <option value="medium">MEDIUM</option>
+                <option value="hard">HARD</option>
               </select>
             </SettingItem>
 
@@ -114,11 +117,11 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               label="Interview Duration"
               description="Set the time limit for each session"
             >
-              <select defaultValue="45" className="bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/40 transition-colors [&>option]:bg-black [&>option]:text-white">
-                <option value="30">30 minutes</option>
-                <option value="45">45 minutes</option>
-                <option value="60">60 minutes</option>
-                <option value="90">90 minutes</option>
+              <select defaultValue="45" className="bg-black border-2 border-green-400/50 px-3 py-2 text-xs text-green-400 font-mono focus:outline-none focus:border-green-400 transition-colors [&>option]:bg-black [&>option]:text-green-400">
+                <option value="30">30 MIN</option>
+                <option value="45">45 MIN</option>
+                <option value="60">60 MIN</option>
+                <option value="90">90 MIN</option>
               </select>
             </SettingItem>
 
@@ -126,10 +129,10 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               label="Programming Language"
               description="Default language for code editor"
             >
-              <select defaultValue="python" className="bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/40 transition-colors [&>option]:bg-black [&>option]:text-white">
-                <option value="python">Python</option>
-                <option value="javascript">JavaScript</option>
-                <option value="java">Java</option>
+              <select defaultValue="python" className="bg-black border-2 border-green-400/50 px-3 py-2 text-xs text-green-400 font-mono focus:outline-none focus:border-green-400 transition-colors [&>option]:bg-black [&>option]:text-green-400">
+                <option value="python">PYTHON</option>
+                <option value="javascript">JAVASCRIPT</option>
+                <option value="java">JAVA</option>
                 <option value="cpp">C++</option>
               </select>
             </SettingItem>
@@ -138,11 +141,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           {/* Audio/Video Settings Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-              <h3 className="text-xs font-medium text-white/60 tracking-widest uppercase">
-                Audio & Video
+              <h3 className="text-xs font-mono text-cyan-400 tracking-widest uppercase">
+                &gt; AUDIO_VIDEO_CONFIG
               </h3>
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
             </div>
 
             <SettingItem
@@ -170,11 +171,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           {/* Feedback Settings Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-              <h3 className="text-xs font-medium text-white/60 tracking-widest uppercase">
-                Feedback
+              <h3 className="text-xs font-mono text-cyan-400 tracking-widest uppercase">
+                &gt; FEEDBACK_CONFIG
               </h3>
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
             </div>
 
             <SettingItem
@@ -201,21 +200,18 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-white/10 flex justify-end gap-3">
+        <div className="p-6 border-t-2 border-green-400/30 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="relative px-6 py-2 text-sm text-white/60 hover:text-white transition-colors group"
+            className="px-4 py-2 text-xs font-mono text-gray-500 border-2 border-gray-700 hover:border-gray-500 hover:text-gray-400 transition-colors"
           >
-            <span className="absolute inset-0 bg-white/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" />
-            <span className="relative">Cancel</span>
+            [CANCEL]
           </button>
           <button
             onClick={onClose}
-            className="relative px-6 py-2 text-sm text-white transition-all duration-300 hover:scale-105 group"
+            className="px-4 py-2 text-xs font-mono text-green-400 border-2 border-green-400/50 hover:border-green-400 hover:shadow-[0_0_10px_rgba(0,255,0,0.5)] transition-all duration-300"
           >
-            <span className="absolute inset-0 bg-gradient-to-r from-white/10 to-white/5 rounded-lg blur-sm group-hover:blur-md transition-all" />
-            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity" />
-            <span className="relative">Save Changes</span>
+            [SAVE_CHANGES]
           </button>
         </div>
       </div>
@@ -235,8 +231,8 @@ function SettingItem({
   return (
     <div className="flex items-center justify-between gap-4 group">
       <div className="flex-1">
-        <label className="text-sm font-medium text-white/90">{label}</label>
-        <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+        <label className="text-xs font-mono text-green-400 uppercase tracking-wide">{label}</label>
+        <p className="text-xs font-mono text-gray-600 mt-0.5">{description}</p>
       </div>
       <div className="flex-shrink-0">{children}</div>
     </div>
@@ -247,8 +243,8 @@ function ToggleSwitch({ defaultChecked = false }: { defaultChecked?: boolean }) 
   return (
     <label className="relative inline-flex items-center cursor-pointer">
       <input type="checkbox" className="sr-only peer" defaultChecked={defaultChecked} />
-      <div className="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-white/20 transition-colors border border-white/20 peer-checked:border-white/40">
-        <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white/50 rounded-full transition-transform peer-checked:translate-x-5 peer-checked:bg-white" />
+      <div className="w-11 h-6 bg-black border-2 border-green-400/30 peer peer-checked:border-green-400 transition-all">
+        <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-gray-700 transition-all peer-checked:translate-x-5 peer-checked:bg-green-400 peer-checked:shadow-[0_0_8px_rgba(0,255,0,0.6)]" />
       </div>
     </label>
   );

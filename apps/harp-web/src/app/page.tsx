@@ -2,90 +2,118 @@ import Link from 'next/link';
 
 export default function Index() {
   return (
-    <div className="h-screen flex flex-col items-center justify-center bg-black relative overflow-hidden">
-      {/* Animated background gradient orbs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/3 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+    <div className="h-screen flex flex-col items-center justify-center bg-black relative overflow-hidden crt-screen">
+      {/* Retro grid background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'linear-gradient(#00ff00 1px, transparent 1px), linear-gradient(90deg, #00ff00 1px, transparent 1px)',
+          backgroundSize: '50px 50px',
+          opacity: 0.1
+        }} />
       </div>
       
+      {/* Glowing corners */}
+      <div className="absolute top-0 left-0 w-32 h-32 border-l-4 border-t-4 border-cyan-400" style={{ boxShadow: '0 0 20px rgba(0, 255, 255, 0.5)' }} />
+      <div className="absolute top-0 right-0 w-32 h-32 border-r-4 border-t-4 border-green-400" style={{ boxShadow: '0 0 20px rgba(0, 255, 0, 0.5)' }} />
+      <div className="absolute bottom-0 left-0 w-32 h-32 border-l-4 border-b-4 border-green-400" style={{ boxShadow: '0 0 20px rgba(0, 255, 0, 0.5)' }} />
+      <div className="absolute bottom-0 right-0 w-32 h-32 border-r-4 border-b-4 border-cyan-400" style={{ boxShadow: '0 0 20px rgba(0, 255, 255, 0.5)' }} />
+      
       <div className="text-center relative z-10 px-6 max-w-4xl">
-        {/* Gradient animated title */}
-        <h1 className="text-6xl font-bold mb-5 bg-gradient-to-r from-white via-gray-200 to-white bg-clip-text text-transparent animate-[gradient_3s_ease-in-out_infinite] bg-[length:200%_auto]">
-          Virtual Interview Tester
-        </h1>
+        {/* Retro-modern title */}
+        <div className="mb-8">
+          <div className="text-sm retro-text-cyan mb-2 tracking-widest">&gt; SYSTEM.BOOT</div>
+          <h1 className="text-6xl font-bold mb-3 retro-glow" style={{
+            fontFamily: 'Courier New, monospace',
+            color: '#00ff00',
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em'
+          }}>
+            HARP_INTERVIEW.EXE
+          </h1>
+          <div className="text-sm retro-text mb-2">[ ARTIFICIAL INTELLIGENCE RECRUITMENT PROTOCOL ]</div>
+        </div>
         
-        {/* Flowing underline */}
-        <div className="h-0.5 w-64 mx-auto mb-6 bg-gradient-to-r from-transparent via-white to-transparent opacity-50" />
+        {/* Retro progress bar style underline */}
+        <div className="w-96 mx-auto mb-8 h-2 bg-black border-2 border-green-400 relative overflow-hidden" style={{ boxShadow: '0 0 10px rgba(0, 255, 0, 0.3)' }}>
+          <div className="absolute inset-0 bg-gradient-to-r from-green-400 via-cyan-400 to-green-400 animate-[gradient_2s_ease-in-out_infinite]" style={{ backgroundSize: '200% 100%' }} />
+        </div>
         
-        <p className="text-lg text-gray-400 mb-4 font-light tracking-wide">
-          Practice your technical interviews with AI
-        </p>
+        <div className="bg-black/60 border-2 border-green-400/50 p-6 mb-8 max-w-2xl mx-auto" style={{ boxShadow: '0 0 15px rgba(0, 255, 0, 0.2)' }}>
+          <p className="text-sm retro-text-cyan mb-3 font-mono">
+            &gt; MISSION: TECHNICAL_INTERVIEW_SIMULATION
+          </p>
+          <p className="text-xs text-green-400/70 font-mono leading-relaxed">
+            // Experience realistic coding interviews with AI<br/>
+            // Get instant feedback in a live environment<br/>
+            // Build confidence before your next opportunity<br/>
+            <span className="text-cyan-400">// STATUS: READY</span>
+          </p>
+        </div>
         
-        <p className="text-xs text-gray-500 mb-8 max-w-2xl mx-auto leading-relaxed">
-          Experience realistic coding interviews with our AI interviewer. Get instant feedback, 
-          practice in a live coding environment, and build confidence before your next big opportunity.
-        </p>
-        
-        {/* Floating button with glow effect */}
+        {/* Retro-modern button */}
         <Link 
           href="/interview" 
-          className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-white transition-all duration-300 hover:scale-105 mb-10"
+          className="group relative inline-block mb-12"
         >
-          <span className="absolute inset-0 bg-gradient-to-r from-white/10 to-white/5 rounded-full blur-md group-hover:blur-xl transition-all" />
-          <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-          <span className="relative flex items-center gap-2">
-            Start Interview
-            <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </span>
+          <div className="relative bg-black border-4 border-green-400 px-12 py-4 transition-all duration-200 hover:border-cyan-400 hover:translate-x-1 hover:-translate-y-1" style={{
+            boxShadow: '6px 6px 0px rgba(0, 255, 0, 0.5)',
+            clipPath: 'polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px))'
+          }}>
+            <span className="retro-text text-xl tracking-widest font-bold block">
+              [ INITIALIZE ]
+            </span>
+            <span className="text-cyan-400 text-xs font-mono block mt-1">&gt; press.enter_</span>
+          </div>
         </Link>
         
-        {/* Feature highlights in flowing layout */}
+        {/* Retro feature boxes */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Feature 1 */}
-          <div className="relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity blur-sm" />
-            <div className="relative text-center">
-              <div className="text-2xl mb-2">🤖</div>
-              <h3 className="text-xs font-medium text-white/80 mb-1.5 tracking-wide">AI Interviewer</h3>
-              <p className="text-[10px] text-gray-500 leading-relaxed">
-                Interact with a responsive AI that asks real interview questions
-              </p>
-            </div>
+          <div className="bg-black border-2 border-green-400/50 p-4 transition-all hover:border-green-400 hover:shadow-[0_0_20px_rgba(0,255,0,0.3)]">
+            <div className="text-green-400 text-xs font-mono mb-2">[MODULE_01]</div>
+            <h3 className="text-sm font-bold text-cyan-400 mb-2 font-mono">AI.INTERVIEWER</h3>
+            <p className="text-[10px] text-green-400/70 font-mono leading-relaxed">
+              &gt; Responsive AI agent<br/>
+              &gt; Real interview questions<br/>
+              &gt; Natural interaction
+            </p>
           </div>
           
           {/* Feature 2 */}
-          <div className="relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity blur-sm" />
-            <div className="relative text-center">
-              <div className="text-2xl mb-2">💻</div>
-              <h3 className="text-xs font-medium text-white/80 mb-1.5 tracking-wide">Live Coding</h3>
-              <p className="text-[10px] text-gray-500 leading-relaxed">
-                Write and execute code in real-time with an integrated terminal
-              </p>
-            </div>
+          <div className="bg-black border-2 border-cyan-400/50 p-4 transition-all hover:border-cyan-400 hover:shadow-[0_0_20px_rgba(0,255,255,0.3)]">
+            <div className="text-cyan-400 text-xs font-mono mb-2">[MODULE_02]</div>
+            <h3 className="text-sm font-bold text-green-400 mb-2 font-mono">LIVE.CODING</h3>
+            <p className="text-[10px] text-cyan-400/70 font-mono leading-relaxed">
+              &gt; Real-time execution<br/>
+              &gt; Integrated terminal<br/>
+              &gt; Instant compilation
+            </p>
           </div>
           
           {/* Feature 3 */}
-          <div className="relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity blur-sm" />
-            <div className="relative text-center">
-              <div className="text-2xl mb-2">📊</div>
-              <h3 className="text-xs font-medium text-white/80 mb-1.5 tracking-wide">Real-Time Feedback</h3>
-              <p className="text-[10px] text-gray-500 leading-relaxed">
-                Get instant insights on your performance and communication style
-              </p>
-            </div>
+          <div className="bg-black border-2 border-green-400/50 p-4 transition-all hover:border-green-400 hover:shadow-[0_0_20px_rgba(0,255,0,0.3)]">
+            <div className="text-green-400 text-xs font-mono mb-2">[MODULE_03]</div>
+            <h3 className="text-sm font-bold text-cyan-400 mb-2 font-mono">FEEDBACK.SYS</h3>
+            <p className="text-[10px] text-green-400/70 font-mono leading-relaxed">
+              &gt; Performance metrics<br/>
+              &gt; Instant insights<br/>
+              &gt; Style analysis
+            </p>
           </div>
         </div>
       </div>
       
-      {/* Decorative elements */}
-      <div className="absolute bottom-10 left-10 text-white/10 text-sm font-mono">{'<AI_READY />'}</div>
-      <div className="absolute top-10 right-10 text-white/10 text-sm font-mono">{'{ interview: true }'}</div>
+      {/* Retro terminal corners */}
+      <div className="absolute bottom-4 left-4 text-green-400/30 text-xs font-mono">
+        &gt; SYSTEM.STATUS: OPERATIONAL<br/>
+        &gt; AI.CORE: ACTIVE<br/>
+        &gt; READY_
+      </div>
+      <div className="absolute top-4 right-4 text-cyan-400/30 text-xs font-mono text-right">
+        HARP v1.0.0<br/>
+        BUILD: 2025.11.16<br/>
+        [RETRO.MODERN]
+      </div>
     </div>
   );
 }

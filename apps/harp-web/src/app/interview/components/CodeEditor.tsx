@@ -15,8 +15,51 @@ export default function CodeEditor({ onRunCode, onCodeChange }: CodeEditorProps)
   const [isWhiteboardMode, setIsWhiteboardMode] = useState(false);
   const editorRef = useRef<any>(null);
 
-  const handleEditorDidMount = (editor: any) => {
+  const handleEditorDidMount = (editor: any, monaco: any) => {
     editorRef.current = editor;
+    
+    // Define custom retro theme
+    monaco.editor.defineTheme('retro-terminal', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [
+        { token: '', foreground: '00ff00' }, // Default text - green
+        { token: 'comment', foreground: '00ffff', fontStyle: 'italic' }, // Comments - cyan
+        { token: 'keyword', foreground: '00ff00', fontStyle: 'bold' }, // Keywords - bright green
+        { token: 'string', foreground: '00ffff' }, // Strings - cyan
+        { token: 'number', foreground: '00ff00' }, // Numbers - green
+        { token: 'regexp', foreground: '00ffff' }, // Regex - cyan
+        { token: 'operator', foreground: '00ff00' }, // Operators - green
+        { token: 'namespace', foreground: '00ffff' }, // Namespaces - cyan
+        { token: 'type', foreground: '00ff00' }, // Types - green
+        { token: 'struct', foreground: '00ffff' }, // Structs - cyan
+        { token: 'class', foreground: '00ff00', fontStyle: 'bold' }, // Classes - bright green
+        { token: 'function', foreground: '00ffff' }, // Functions - cyan
+        { token: 'variable', foreground: '00ff00' }, // Variables - green
+        { token: 'constant', foreground: '00ff00', fontStyle: 'bold' }, // Constants - bright green
+        { token: 'parameter', foreground: '00ffff' }, // Parameters - cyan
+        { token: 'property', foreground: '00ff00' }, // Properties - green
+        { token: 'label', foreground: '00ffff' }, // Labels - cyan
+      ],
+      colors: {
+        'editor.background': '#000000', // Pure black background
+        'editor.foreground': '#00ff00', // Green foreground
+        'editor.lineHighlightBackground': '#001a00', // Dark green highlight
+        'editor.selectionBackground': '#003300', // Green selection
+        'editor.inactiveSelectionBackground': '#002200', // Darker green inactive selection
+        'editorCursor.foreground': '#00ff00', // Green cursor
+        'editorLineNumber.foreground': '#00ff0080', // Semi-transparent green line numbers
+        'editorLineNumber.activeForeground': '#00ff00', // Bright green active line number
+        'editorIndentGuide.background': '#00ff0020', // Very faint green indent guides
+        'editorIndentGuide.activeBackground': '#00ff0040', // Faint green active indent guides
+        'editorWhitespace.foreground': '#00ff0030', // Very faint green whitespace
+        'editorBracketMatch.background': '#003300', // Green bracket match background
+        'editorBracketMatch.border': '#00ff00', // Green bracket match border
+      },
+    });
+    
+    // Apply the theme
+    monaco.editor.setTheme('retro-terminal');
   };
 
   const handleRunCode = async () => {
@@ -31,33 +74,37 @@ export default function CodeEditor({ onRunCode, onCodeChange }: CodeEditorProps)
   const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
 
   return (
-    <div className="flex-1 bg-gradient-to-br from-black via-black to-gray-950 border-r border-b border-white/10 overflow-hidden flex flex-col shadow-2xl shadow-white/5">
-      <div className="bg-gradient-to-r from-white/5 to-transparent border-b border-white/10 px-4 py-3 flex items-center justify-between backdrop-blur-sm">
-        <div className="flex gap-2.5">
-          <div className="w-3 h-3 rounded-full bg-gradient-to-br from-red-500/80 to-red-600/60 border border-red-400/30 shadow-sm shadow-red-500/20"></div>
-          <div className="w-3 h-3 rounded-full bg-gradient-to-br from-yellow-500/80 to-yellow-600/60 border border-yellow-400/30 shadow-sm shadow-yellow-500/20"></div>
-          <div className="w-3 h-3 rounded-full bg-gradient-to-br from-green-500/80 to-green-600/60 border border-green-400/30 shadow-sm shadow-green-500/20"></div>
+    <div className="flex-1 bg-black border-r-2 border-b-2 border-green-400/30 overflow-hidden flex flex-col">
+      <div className="bg-black border-b-2 border-green-400/30 px-4 py-2 flex items-center justify-between no-crt-lines" style={{ boxShadow: '0 0 15px rgba(0, 255, 0, 0.1)' }}>
+        <div className="flex items-center gap-2">
+          <span className="text-green-400 font-mono text-xs">[IDE]</span>
+          <div className="w-px h-4 bg-green-400/30" />
+          <span className="text-cyan-400 font-mono text-xs">solution.py</span>
         </div>
-        <span className="text-sm text-white font-medium tracking-wide">solution.py</span>
         <div className="flex items-center gap-3">
           <button
             onClick={handleRunCode}
-            className="text-xs text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 border border-green-500/50 px-4 py-1.5 rounded-md shadow-lg shadow-green-500/20 transition-all duration-200 font-medium"
+            className="text-xs text-black bg-green-400 hover:bg-green-300 border-2 border-green-400 px-6 py-1.5 font-mono font-bold transition-all duration-200 tracking-wider"
+            style={{ boxShadow: '0 0 15px rgba(0, 255, 0, 0.5)' }}
           >
-            ▶ Run Code
+            &gt; RUN
           </button>
           <button
             onClick={() => setIsWhiteboardMode(!isWhiteboardMode)}
-            className="text-xs text-gray-400 hover:text-white bg-gradient-to-br from-white/5 to-white/10 hover:from-white/10 hover:to-white/15 border border-white/20 px-3 py-1.5 rounded-md shadow-inner transition-all duration-200"
+            className={`text-xs font-mono px-3 py-1.5 border-2 transition-all duration-200 ${
+              isWhiteboardMode 
+                ? 'text-cyan-400 border-cyan-400 bg-cyan-400/10' 
+                : 'text-green-400/50 border-green-400/30 hover:text-green-400 hover:border-green-400/50'
+            }`}
           >
-            {isWhiteboardMode ? '📝 Whiteboard' : '💻 IDE'}
+            {isWhiteboardMode ? '[WB]' : '[IDE]'}
           </button>
-          <div className="text-xs text-gray-300 bg-gradient-to-br from-white/10 to-white/5 border border-white/20 px-3 py-1.5 rounded-md shadow-inner">
-            Python
+          <div className="text-xs text-cyan-400 border-2 border-cyan-400/50 px-3 py-1.5 font-mono">
+            [PY]
           </div>
         </div>
       </div>
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden no-crt-lines">
         {isWhiteboardMode ? (
           <div className="flex-1 flex h-full">
             <div className="bg-[#1e1e1e] border-r border-white/10 px-4 py-4 font-mono text-sm text-gray-600 select-none overflow-hidden">
@@ -99,7 +146,7 @@ export default function CodeEditor({ onRunCode, onCodeChange }: CodeEditorProps)
               }
             }}
             onMount={handleEditorDidMount}
-            theme="vs-dark"
+            theme="retro-terminal"
             options={{
               minimap: { enabled: false },
               fontSize: 14,

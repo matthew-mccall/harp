@@ -18,11 +18,11 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="bg-gradient-to-b from-black via-black to-black/95 border-b border-white/10 px-6 py-4 backdrop-blur-sm shadow-lg shadow-white/5">
+      <nav className="bg-black border-b-2 border-green-400/30 px-6 py-3" style={{ boxShadow: '0 0 20px rgba(0, 255, 0, 0.1)' }}>
         <div className="flex items-center justify-between max-w-[1800px] mx-auto">
           <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-bold text-white tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent select-none">
-              H.A.R.P
+            <h1 className="text-2xl font-bold font-mono retro-text tracking-wider select-none">
+              [H.A.R.P]
             </h1>
             <div className="flex gap-1 text-sm">
               {['dashboard', 'sessions', 'settings'].map((tab) => (
@@ -30,39 +30,31 @@ export default function Navbar() {
                   key={tab}
                   onClick={() => handleTabClick(tab)}
                   className={`
-                  relative px-4 py-2 font-medium transition-all duration-300 capitalize group
+                  relative px-4 py-2 font-mono text-xs transition-all duration-200 uppercase tracking-wider border-2
                   ${
                     activeTab === tab
-                      ? 'text-white'
-                      : 'text-gray-400 hover:text-white'
+                      ? 'text-green-400 border-green-400 bg-green-400/10'
+                      : 'text-cyan-400/50 border-cyan-400/30 hover:text-cyan-400 hover:border-cyan-400/50'
                   }
                 `}
+                style={activeTab === tab ? { boxShadow: '0 0 10px rgba(0, 255, 0, 0.3)' } : {}}
                 >
-                  {tab}
-                  <span
-                    className={`
-                    absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-white/0 via-white to-white/0 transition-all duration-300
-                    ${
-                      activeTab === tab
-                        ? 'w-full opacity-100'
-                        : 'w-0 opacity-0 group-hover:w-full group-hover:opacity-60'
-                    }
-                  `}
-                  />
+                  [{tab}]
                 </button>
               ))}
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="bg-gradient-to-br from-white/5 to-white/[0.02] px-4 py-2 rounded-lg border border-white/20 backdrop-blur-sm shadow-inner">
-              <span className="text-gray-400 text-sm">Time: </span>
-              <span className="font-mono text-white font-medium">45:30</span>
+            <div className="bg-black px-4 py-2 border-2 border-cyan-400/50 font-mono text-xs" style={{ boxShadow: '0 0 10px rgba(0, 255, 255, 0.2)' }}>
+              <span className="text-cyan-400">TIME: </span>
+              <span className="text-green-400 font-bold">45:30</span>
             </div>
             <Button
               variant="outline"
-              className="bg-gradient-to-br from-white/10 to-white/5 hover:from-white hover:to-gray-100 hover:text-black border-white/40 hover:border-white shadow-lg hover:shadow-white/20 transition-all duration-300"
+              className="bg-black border-2 border-red-400 text-red-400 hover:bg-red-400/10 font-mono text-xs px-6 py-2 tracking-wider transition-all"
+              style={{ boxShadow: '0 0 10px rgba(255, 0, 0, 0.3)' }}
             >
-              End Interview
+              [END]
             </Button>
           </div>
         </div>

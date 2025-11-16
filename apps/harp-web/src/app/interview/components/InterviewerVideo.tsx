@@ -69,26 +69,19 @@ function Scene() {
 
 export default function InterviewerVideo() {
   return (
-    <div className="h-64 bg-gradient-to-br from-black via-gray-950 to-black overflow-hidden relative group">
-      {/* Animated corner accents */}
-      <div className="absolute top-0 left-0 w-16 h-16 border-l border-t border-white/20 transition-all group-hover:w-20 group-hover:h-20 group-hover:border-white/40" />
-      <div className="absolute bottom-0 right-0 w-16 h-16 border-r border-b border-white/20 transition-all group-hover:w-20 group-hover:h-20 group-hover:border-white/40" />
+    <div className="h-64 bg-black overflow-hidden relative border-l-2 border-b-2 border-cyan-400/30 crt-screen" style={{ boxShadow: '0 0 20px rgba(0, 255, 255, 0.1)' }}>
+      {/* Retro corner brackets */}
+      <div className="absolute top-0 left-0 w-16 h-16 border-l-2 border-t-2 border-cyan-400/50" />
+      <div className="absolute bottom-0 right-0 w-16 h-16 border-r-2 border-b-2 border-cyan-400/50" />
 
-      <Canvas
-        gl={{ antialias: true, alpha: true }}
-        onCreated={({ gl }) => {
-          // Keep the gradient background visible behind the WebGL canvas
-          gl.setClearAlpha(0);
-        }}
-        shadows
-      >
+      <Canvas>
         <Scene />
       </Canvas>
 
-      {/* Floating label without box */}
-      <div className="absolute top-4 left-4 text-xs font-medium tracking-widest uppercase text-white/60 flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-gradient-to-r from-white/50 to-transparent" />
-        AI Interviewer
+      {/* Retro label */}
+      <div className="absolute top-3 left-3 text-xs font-mono tracking-widest uppercase text-cyan-400 flex items-center gap-2 border-2 border-cyan-400/50 bg-black px-2 py-1" style={{ boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)' }}>
+        <span className="w-2 h-2 bg-cyan-400 animate-pulse" />
+        [AI.INTERVIEWER]
       </div>
     </div>
   );
