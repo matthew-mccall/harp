@@ -8,6 +8,7 @@ import InterviewerVideo from './components/InterviewerVideo';
 import LiveTranscription from './components/LiveTranscription';
 import UserCamera from './components/UserCamera';
 import ResizeHandle from './components/ResizeHandle';
+import ProblemPanel from './components/ProblemPanel';
 
 // Import Terminal with no SSR to avoid xterm.js server-side rendering issues
 const Terminal = dynamic(() => import('./components/Terminal'), {
@@ -21,9 +22,8 @@ const Terminal = dynamic(() => import('./components/Terminal'), {
 
 export default function InterviewPage() {
   const [terminalHeight, setTerminalHeight] = useState(160);
-  const [leftPanelWidth, setLeftPanelWidth] = useState(70);
   const [isDraggingTerminal, setIsDraggingTerminal] = useState(false);
-  const [isDraggingPanel, setIsDraggingPanel] = useState(false);
+  const [isProblemPanelCollapsed, setIsProblemPanelCollapsed] = useState(false);
   const [liveText, setLiveText] = useState('');
   useEffect(() => {
     console.log('[LiveText] Updated:', liveText);
@@ -130,23 +130,16 @@ export default function InterviewPage() {
         const newHeight = containerRect.bottom - e.clientY;
         setTerminalHeight(Math.min(Math.max(newHeight, 100), 600));
       }
-
-      if (isDraggingPanel) {
-        const containerRect = containerRef.current.getBoundingClientRect();
-        const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-        setLeftPanelWidth(Math.min(Math.max(newWidth, 30), 85));
-      }
     };
 
     const handleMouseUp = () => {
       setIsDraggingTerminal(false);
-      setIsDraggingPanel(false);
     };
 
-    if (isDraggingTerminal || isDraggingPanel) {
+    if (isDraggingTerminal) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = isDraggingTerminal ? 'row-resize' : 'col-resize';
+      document.body.style.cursor = 'row-resize';
       document.body.style.userSelect = 'none';
     }
 
@@ -156,7 +149,7 @@ export default function InterviewPage() {
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
-  }, [isDraggingTerminal, isDraggingPanel]);
+  }, [isDraggingTerminal]);
 
   const handleRunCode = async (code: string) => {
   // 🔁 0) Reset idle-hint state on explicit "Run Code"
@@ -297,8 +290,14 @@ export default function InterviewPage() {
         ref={containerRef}
         className="flex flex-1 overflow-hidden"
       >
-        {/* Left Section - IDE */}
-        <div style={{ width: `${leftPanelWidth}%` }} className="flex flex-col overflow-hidden">
+        {/* Problem Panel - Collapsible */}
+        <ProblemPanel 
+          isCollapsed={isProblemPanelCollapsed}
+          onToggle={() => setIsProblemPanelCollapsed(!isProblemPanelCollapsed)}
+        />
+
+        {/* Middle Section - IDE & Terminal */}
+        <div className="flex-1 flex flex-col overflow-hidden">
           <CodeEditor onRunCode={handleRunCode} onCodeChange={setCurrentCode} />
           
           {/* Terminal Resize Handle */}
@@ -313,15 +312,8 @@ export default function InterviewPage() {
           </div>
         </div>
 
-        {/* Panel Resize Handle */}
-        <ResizeHandle
-          orientation="vertical"
-          onMouseDown={() => setIsDraggingPanel(true)}
-          isDragging={isDraggingPanel}
-        />
-
         {/* Right Section - Video & Captions */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="w-96 flex flex-col overflow-hidden">
           <InterviewerVideo />
           <LiveTranscription text={liveText} />
           <UserCamera />
