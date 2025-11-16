@@ -53,3 +53,7 @@ export const GRADIENT_API_KEY: string | undefined = env.GRADIENT_API_KEY;
 export const ELEVENLABS_API_KEY: string | undefined = env.ELEVENLABS_API_KEY;
 export const ELEVENLABS_VOICE_ID: string | undefined = env.ELEVENLABS_VOICE_ID;
 export const GEMINI_API_KEY: string | undefined = env.GEMINI_API_KEY;
+
+// harp-emotion Socket.IO server URL (optional)
+// Defaults to local emotion service at http://localhost:3001
+export const HARP_EMOTION_URL: string = (env.HARP_EMOTION_URL && env.HARP_EMOTION_URL.trim()) || 'http://localhost:3001';
