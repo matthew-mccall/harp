@@ -2,22 +2,15 @@ import express from 'express';
 import { Server } from 'socket.io'
 import { createServer } from 'node:http';
 import path from 'node:path';
-import fs from 'node:fs';
 import wrtc from '@roamhq/wrtc'
 import cors, { CorsOptions } from 'cors';
-// TensorFlow.js (Node backend) and Face Detection model
-import * as tf from '@tensorflow/tfjs-node';
-import '@tensorflow/tfjs-backend-cpu';
-import '@tensorflow/tfjs-core';
-import '@tensorflow/tfjs-backend-webgl';
-import { createDetector, SupportedModels, type FaceDetector } from '@tensorflow-models/face-detection';
+// Emotion recognition utilities
+import { getFaceDetector, inferEmotionsOnFaces, initializeEmotionEngine, tensorFromRgb } from './emotion-recognizer';
 const { RTCPeerConnection, RTCSessionDescription, RTCIceCandidate } = wrtc;
 const nonstandard: any = (wrtc as any).nonstandard || {};
 const { RTCVideoSink } = nonstandard;
 
-// --- Emotion model config ---
-const EMOTION_LABELS = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral'] as const;
-const IMAGE_SIZE = 48; // model expects 48x48 grayscale
+// --- App config ---
 
 const host = process.env.HOST ?? 'localhost';
 const port = process.env.PORT ? Number(process.env.PORT) : 3001;
@@ -162,7 +155,7 @@ app.post('/webrtc/offer', async (req, res) => {
 
           const rgb = i420ToRgb(data, width, height);
           // Create tensor [H,W,3] int32 so values 0..255 are preserved
-          const frameTensor = tf.tensor3d(rgb, [height, width, 3], 'int32');
+          const frameTensor = tensorFromRgb(rgb, width, height);
           let faces: any[] = [];
           try {
             const detector = await getFaceDetector();
@@ -305,29 +298,10 @@ app.post('/webrtc/offer', async (req, res) => {
   }
 });
 
-// Startup: load the emotion model first, then start accepting connections
+// Startup: initialize the emotion engine first, then start accepting connections
 async function bootstrap() {
   try {
-    console.log('[startup] initializing TensorFlow...');
-    await tf.ready();
-    try {
-      console.log('[startup] tfjs backend:', tf.getBackend());
-    } catch {}
-
-    console.log('[startup] loading emotion model...');
-    const t0 = Date.now();
-    const model = await getEmotionModel();
-
-    // Optional warm-up to reduce first-inference latency
-    try {
-      const warm = tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 1]);
-      const out = model.predict(warm) as tf.Tensor;
-      await out.data();
-      warm.dispose();
-      out.dispose();
-    } catch {}
-
-    console.log(`[startup] emotion model loaded in ${Date.now() - t0} ms`);
+    await initializeEmotionEngine();
 
     server.listen(port, host, () => {
       console.log(`[ ready ] http://${host}:${port}`);
@@ -339,30 +313,6 @@ async function bootstrap() {
 }
 
 bootstrap();
-
-// --- Face Detection Utilities ---
-let detectorPromise: Promise<FaceDetector> | null = null;
-async function getFaceDetector(): Promise<FaceDetector> {
-  if (!detectorPromise) {
-    detectorPromise = (async () => {
-      try {
-        // Prefer CPU backend for broader kernel coverage (e.g., 'Transform' op)
-        await tf.setBackend('cpu');
-      } catch {
-        // Fallback to whatever backend is available
-      }
-      await tf.ready();
-      try {
-        console.log('[face] tfjs backend:', tf.getBackend());
-      } catch {}
-      const detector = await createDetector(SupportedModels.MediaPipeFaceDetector, {
-        runtime: 'tfjs',
-      } as any);
-      return detector;
-    })();
-  }
-  return detectorPromise;
-}
 
 function clampToByte(x: number): number {
   return x < 0 ? 0 : x > 255 ? 255 : x | 0;
@@ -405,110 +355,4 @@ function i420ToRgb(yuv: Uint8Array | Buffer, width: number, height: number): Uin
   return rgb;
 }
 
-// --- Emotion Recognition Utilities ---
-let emotionModelPromise: Promise<tf.LayersModel> | null = null;
-async function getEmotionModel(): Promise<tf.LayersModel> {
-  if (!emotionModelPromise) {
-    emotionModelPromise = (async () => {
-      // Resolve model.json path from multiple candidates
-      const candidates = [
-        path.resolve(__dirname, '../../../assets/face_emotion_model_browser/model.json'),
-        path.resolve(process.cwd(), 'assets/face_emotion_model_browser/model.json'),
-        path.resolve(__dirname, 'assets/face_emotion_model_browser/model.json'),
-      ];
-      let modelJsonPath: string | null = null;
-      for (const p of candidates) {
-        try {
-          if (fs.existsSync(p)) { modelJsonPath = p; break; }
-        } catch {}
-      }
-      if (!modelJsonPath) {
-        throw new Error('Emotion model not found. Expected at one of: ' + candidates.join(', '));
-      }
-      const url = `file://${modelJsonPath}`;
-      const model = await tf.loadLayersModel(url);
-      return model;
-    })();
-  }
-  return emotionModelPromise;
-}
-
-type FaceBox = { x: number; y: number; width: number; height: number };
-
-function toFaceBox(face: any): FaceBox | null {
-  // Support various detectors shapes
-  if (face) {
-    // MediaPipeFaceDetector style: face.box with xMin,yMin,width,height in px
-    const b = face.box;
-    if (b && typeof b.xMin === 'number' && typeof b.yMin === 'number') {
-      const w = typeof b.width === 'number' ? b.width : (b.xMax - b.xMin);
-      const h = typeof b.height === 'number' ? b.height : (b.yMax - b.yMin);
-      return { x: b.xMin, y: b.yMin, width: w, height: h };
-    }
-    // BlazeFace style: topLeft/bottomRight arrays in px
-    if (Array.isArray(face.topLeft) && Array.isArray(face.bottomRight)) {
-      const [x1, y1] = face.topLeft;
-      const [x2, y2] = face.bottomRight;
-      return { x: x1, y: y1, width: x2 - x1, height: y2 - y1 };
-    }
-  }
-  return null;
-}
-
-function normalizeBox(box: FaceBox, frameWidth: number, frameHeight: number, margin = 0.03) {
-  const x1 = Math.max(0, box.x - box.width * margin);
-  const y1 = Math.max(0, box.y - box.height * margin);
-  const x2 = Math.min(frameWidth, box.x + box.width * (1 + margin));
-  const y2 = Math.min(frameHeight, box.y + box.height * (1 + margin));
-  // Return in [y1, x1, y2, x2] normalized (y by height, x by width)
-  return [
-    y1 / frameHeight,
-    x1 / frameWidth,
-    y2 / frameHeight,
-    x2 / frameWidth,
-  ] as [number, number, number, number];
-}
-
-async function inferEmotionsOnFaces(frameTensor: tf.Tensor3D, faces: any[], frameWidth: number, frameHeight: number) {
-  if (!faces || faces.length === 0) return [] as any[];
-  const boxesPx: FaceBox[] = [];
-  const boxesNorm: Array<[number, number, number, number]> = [];
-  for (const f of faces) {
-    const fb = toFaceBox(f);
-    if (!fb) continue;
-    boxesPx.push(fb);
-    boxesNorm.push(normalizeBox(fb, frameWidth, frameHeight));
-  }
-  if (boxesNorm.length === 0) return [] as any[];
-
-  // Manually manage tensors (avoid async inside tf.tidy)
-  // Ensure strong typings for TS: cropAndResize expects Tensor4D input
-  const batched = frameTensor.expandDims(0) as tf.Tensor4D; // [1,H,W,3]
-  const boxesTensor = tf.tensor2d(boxesNorm, [boxesNorm.length, 4]) as tf.Tensor2D;
-  const boxInd = tf.tensor1d(new Array(boxesNorm.length).fill(0), 'int32') as tf.Tensor1D;
-  const crops = tf.image.cropAndResize(batched, boxesTensor, boxInd, [IMAGE_SIZE, IMAGE_SIZE]); // [N,48,48,3]
-  const gray = crops.mean(3).expandDims(-1); // [N,48,48,1]
-  const input = gray.toFloat().div(255);
-  const model = await getEmotionModel();
-  const pred = model.predict(input) as tf.Tensor;
-  const results = await pred.array() as number[][];
-  // Cleanup intermediate tensors
-  batched.dispose();
-  boxesTensor.dispose();
-  boxInd.dispose();
-  crops.dispose();
-  gray.dispose();
-  input.dispose();
-  pred.dispose();
-
-  const out: any[] = [];
-  for (let i = 0; i < results.length; i++) {
-    const probs = results[i];
-    const sum = probs.reduce((a, b) => a + (isFinite(b) ? Math.max(0, b) : 0), 0) || 1;
-    const norm = probs.map((p) => Math.max(0, p) / sum);
-    const emotions = EMOTION_LABELS.map((emotion, idx) => ({ emotion, probability: norm[idx] ?? 0 }));
-    const dominantEmotion = emotions.reduce((m, c) => (c.probability > m.probability ? c : m), emotions[0]);
-    out.push({ box: boxesPx[i], emotions, dominantEmotion });
-  }
-  return out;
-}
+// (Emotion recognition and TF utilities moved to ./emotion-recognizer)
