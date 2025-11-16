@@ -33,7 +33,16 @@ export default function InterviewPage() {
   const [currentCode, setCurrentCode] = useState('');
   const idleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastHintCodeRef = useRef<string>('');
-
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('easy');
+  useEffect(() => {
+    // On first mount, hydrate difficulty from localStorage if available
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('harp_interview_difficulty');
+      if (stored === 'easy' || stored === 'medium' || stored === 'hard') {
+        setDifficulty(stored);
+      }
+    }
+  }, []);
   const evaluateCode = async (code: string, stdout: string) => {
     if (!interviewState) {
       console.log('[EVAL] Skipped — no interviewState yet.');
@@ -68,6 +77,14 @@ export default function InterviewPage() {
           ? `${prev}\n\nEvaluation: Failed to evaluate solution.`
           : 'Failed to evaluate solution.'
       );
+    } finally {
+      // After any evaluation, treat this code as the latest activity and clear the idle hint timer.
+      console.log('[EVAL] Resetting idle hint state after evaluation');
+      lastHintCodeRef.current = code;
+      if (idleTimeoutRef.current) {
+        clearTimeout(idleTimeoutRef.current);
+        idleTimeoutRef.current = null;
+      }
     }
   };
 
@@ -75,12 +92,21 @@ export default function InterviewPage() {
     const startInterview = async () => {
       console.log("STARTING INTERVIEW....");
       try {
+        let diff: 'easy' | 'medium' | 'hard' = 'easy';
+        if (typeof window !== 'undefined') {
+          const stored = window.localStorage.getItem('harp_interview_difficulty');
+          if (stored === 'easy' || stored === 'medium' || stored === 'hard') {
+            diff = stored;
+          }
+        }
+        setDifficulty(diff);
+        console.log('[INTERVIEW] Using difficulty:', diff);
         const response = await fetch('http://localhost:4000/api/start-interview', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ difficulty: 'easy' }),
+          body: JSON.stringify({ difficulty: diff }),
         });
         const data = await response.json();
         console.log("[INTERVIEW] Response data:", data);
@@ -146,9 +172,6 @@ export default function InterviewPage() {
   lastHintCodeRef.current = code;
   console.log('[RUN] Updated lastHintCodeRef to current code (length =', code.length, ')');
 
-  // 1) First call our interview evaluator (no stdout yet)
-  await evaluateCode(code, '');
-
   // 2) Then run the code in the terminal as before
   if (typeof window !== 'undefined' && (window as any).writeToTerminal) {
     (window as any).writeToTerminal('\x1b[33m$ Running code...\x1b[0m');
@@ -189,10 +212,9 @@ export default function InterviewPage() {
       (window as any).writeToTerminal('');
     }
 
-    // (Optional) later if you want evaluation with stdout:
-    // if (result.success) {
-    //   await evaluateCode(code, result.stdout || '');
-    // }
+    if (result.success) {
+      await evaluateCode(code, result.stdout || result.stderr || '');
+    }
   } catch (error) {
     console.error('Error executing code:', error);
     if (typeof window !== 'undefined' && (window as any).writeToTerminal) {

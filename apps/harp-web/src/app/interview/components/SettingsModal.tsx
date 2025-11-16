@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -8,6 +8,15 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+  const [difficulty, setDifficulty] = useState('medium');
+  useEffect(() => {
+  if (typeof window !== 'undefined') {
+    const stored = window.localStorage.getItem('harp_interview_difficulty');
+    if (stored === 'easy' || stored === 'medium' || stored === 'hard') {
+      setDifficulty(stored);
+    }
+  }
+}, []);
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -83,7 +92,18 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               label="Difficulty Level"
               description="Adjust the complexity of interview questions"
             >
-              <select defaultValue="medium" className="bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/40 transition-colors [&>option]:bg-black [&>option]:text-white">
+              <select
+                defaultValue="medium"
+                value={difficulty}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setDifficulty(value);
+                  if (typeof window !== 'undefined') {
+                    window.localStorage.setItem('harp_interview_difficulty', value);
+                  }
+                }}
+                className="bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/40 transition-colors [&>option]:bg-black [&>option]:text-white"
+              >
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
